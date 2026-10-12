@@ -34,21 +34,21 @@
                 <input type="password" id="password" required class="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/80 text-white text-sm focus:outline-none focus:border-emerald-500 backdrop-blur-md">
             </div>
 
-            <!-- ช่อง MAC Address จะซ่อนไว้ตอนเข้าสู่ระบบปกติ และจะแสดงขึ้นมาเมื่อกดปุ่มผูกบอร์ด -->
+            <!-- ช่อง MAC Address (แสดงเมื่อเลือกโหมดผูกบอร์ดใหม่) -->
             <div id="macContainer" class="hidden">
                 <label class="block text-xs text-emerald-400 mb-1">Device MAC Address (สำหรับผูกครั้งแรก):</label>
                 <input type="text" id="macAddress" placeholder="เช่น A1B2C3D4E5F6" class="w-full px-4 py-3 rounded-xl border border-emerald-500/50 bg-slate-800/80 text-white text-sm focus:outline-none focus:border-emerald-400 backdrop-blur-md">
             </div>
 
-            <!-- ปุ่มเข้าสู่ระบบปกติ (สำหรับคนที่มีบอร์ดผูกไว้แล้ว) -->
+            <!-- ปุ่มเข้าสู่ระบบปกติ -->
             <button onclick="handleLogin()" id="btnLogin" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-emerald-600/30 transition cursor-pointer">เข้าสู่ระบบ</button>
 
-            <!-- ปุ่มสลับไปโหมดผูกบอร์ดใหม่ หรือกดเพื่อยืนยันผูกบอร์ด -->
+            <!-- ปุ่มสลับโหมดผูกบอร์ดใหม่ -->
             <button onclick="toggleBindMode()" id="btnToggleBind" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium py-2.5 rounded-xl text-xs transition cursor-pointer">⚙️ ผูกอุปกรณ์ / เปลี่ยนบอร์ดใหม่</button>
         </div>
     </div>
 
-    <!-- ส่วนที่ 2: หน้าแดชบอร์ดควบคุมหลัก (ซ่อนไว้จนกว่าจะล็อกอินสำเร็จ) -->
+    <!-- ส่วนที่ 2: หน้าแดชบอร์ดควบคุมหลัก -->
     <div id="dashboardSection" class="max-w-md w-full bg-slate-900/75 backdrop-blur-2xl border border-emerald-500/20 shadow-2xl rounded-3xl p-6 relative animate-float hidden">
         <div class="flex items-center justify-between mb-5">
             <div>
@@ -80,13 +80,12 @@
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxC6BCiTAfKzfO0hw4PP-z012lRoXI1XEhYba6ZPRTAYWWhw4rxmNlHLkswG5CgLsCLyw/exec";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxz9bVx3U2BdHEoib18rNizHjxaxoSKWisZBZevvZ92aXybUerOdPF7uASZlBuNo5yrkw/exec";
 
         let currentDeviceMac = "";
         let refreshInterval = null;
         let isBindMode = false;
 
-        // สลับโหมดระหว่าง เข้าสู่ระบบปกติ กับ ผูกบอร์ดใหม่
         function toggleBindMode() {
             isBindMode = !isBindMode;
             let macContainer = document.getElementById("macContainer");
@@ -106,7 +105,6 @@
             }
         }
 
-        // ฟังก์ชันเข้าสู่ระบบปกติ (ดึง MAC Address อัตโนมัติจากชีต Users)
         function handleLogin() {
             let user = document.getElementById("username").value.trim();
             let pass = document.getElementById("password").value.trim();
@@ -126,7 +124,6 @@
                 } else if(result === "NOT_BOUND") {
                     alert("บัญชีนี้ยังไม่เคยผูกอุปกรณ์ กรุณากดปุ่ม 'ผูกอุปกรณ์' ด้านล่างก่อนครับ");
                 } else {
-                    // ล็อกอินสำเร็จ ได้ MAC Address กลับมา
                     currentDeviceMac = result;
                     enterDashboard(currentDeviceMac);
                 }
@@ -134,7 +131,6 @@
             .catch(err => alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: " + err));
         }
 
-        // ฟังก์ชันผูกบอร์ดใหม่
         function handleBind() {
             let user = document.getElementById("username").value.trim();
             let pass = document.getElementById("password").value.trim();
@@ -161,7 +157,6 @@
             .catch(err => alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: " + err));
         }
 
-        // เปลี่ยนหน้าจอเข้าสู่แดชบอร์ด
         function enterDashboard(mac) {
             document.getElementById("dispDeviceId").innerText = mac;
             document.getElementById("loginSection").classList.add("hidden");
