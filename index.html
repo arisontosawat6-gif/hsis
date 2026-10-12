@@ -17,12 +17,12 @@
     <div class="bg-company"></div>
     <div class="absolute inset-0 bg-gradient-to-tr from-slate-950/80 via-slate-900/60 to-emerald-950/40 z-[-1]"></div>
 
-    <!-- ส่วนที่ 1: หน้า Login / ผูกบัญชี (แสดงตอนยังไม่เข้าสู่ระบบ) -->
+    <!-- ส่วนที่ 1: หน้า Login / ผูกบัญชี -->
     <div id="loginSection" class="max-w-sm w-full bg-slate-900/75 backdrop-blur-2xl border border-emerald-500/20 shadow-2xl rounded-3xl p-6">
         <div class="text-center mb-6">
             <span class="text-[10px] text-emerald-400 uppercase bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 font-medium tracking-wide">Cleanning</span>
-            <h2 class="text-xl font-bold text-white mt-2">เข้าสู่ระบบ / ผูกอุปกรณ์</h2>
-            <p class="text-xs text-slate-400 mt-1">กรอกข้อมูลบัญชีและ MAC Address ของบอร์ด</p>
+            <h2 class="text-xl font-bold text-white mt-2">เข้าสู่ระบบควบคุม</h2>
+            <p class="text-xs text-slate-400 mt-1">กรอกข้อมูลบัญชีผู้ใช้งานของคุณ</p>
         </div>
         <div class="space-y-4">
             <div>
@@ -33,11 +33,18 @@
                 <label class="block text-xs text-slate-400 mb-1">Password:</label>
                 <input type="password" id="password" required class="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/80 text-white text-sm focus:outline-none focus:border-emerald-500 backdrop-blur-md">
             </div>
-            <div>
-                <label class="block text-xs text-slate-400 mb-1">Device MAC Address:</label>
-                <input type="text" id="macAddress" placeholder="เช่น A1B2C3D4E5F6" required class="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/80 text-white text-sm focus:outline-none focus:border-emerald-500 backdrop-blur-md">
+
+            <!-- ช่อง MAC Address จะซ่อนไว้ตอนเข้าสู่ระบบปกติ และจะแสดงขึ้นมาเมื่อกดปุ่มผูกบอร์ด -->
+            <div id="macContainer" class="hidden">
+                <label class="block text-xs text-emerald-400 mb-1">Device MAC Address (สำหรับผูกครั้งแรก):</label>
+                <input type="text" id="macAddress" placeholder="เช่น A1B2C3D4E5F6" class="w-full px-4 py-3 rounded-xl border border-emerald-500/50 bg-slate-800/80 text-white text-sm focus:outline-none focus:border-emerald-400 backdrop-blur-md">
             </div>
-            <button onclick="handleLoginOrBind()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-emerald-600/30 transition cursor-pointer">เข้าสู่ระบบ / ผูกบอร์ด</button>
+
+            <!-- ปุ่มเข้าสู่ระบบปกติ (สำหรับคนที่มีบอร์ดผูกไว้แล้ว) -->
+            <button onclick="handleLogin()" id="btnLogin" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-emerald-600/30 transition cursor-pointer">เข้าสู่ระบบ</button>
+
+            <!-- ปุ่มสลับไปโหมดผูกบอร์ดใหม่ หรือกดเพื่อยืนยันผูกบอร์ด -->
+            <button onclick="toggleBindMode()" id="btnToggleBind" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium py-2.5 rounded-xl text-xs transition cursor-pointer">⚙️ ผูกอุปกรณ์ / เปลี่ยนบอร์ดใหม่</button>
         </div>
     </div>
 
@@ -73,19 +80,68 @@
     </div>
 
     <script>
-        // อัปเดต Web App URL ใหม่เรียบร้อยแล้ว
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxC6BCiTAfKzfO0hw4PP-z012lRoXI1XEhYba6ZPRTAYWWhw4rxmNlHLkswG5CgLsCLyw/exec";
 
         let currentDeviceMac = "";
         let refreshInterval = null;
+        let isBindMode = false;
 
-        function handleLoginOrBind() {
+        // สลับโหมดระหว่าง เข้าสู่ระบบปกติ กับ ผูกบอร์ดใหม่
+        function toggleBindMode() {
+            isBindMode = !isBindMode;
+            let macContainer = document.getElementById("macContainer");
+            let btnLogin = document.getElementById("btnLogin");
+            let btnToggleBind = document.getElementById("btnToggleBind");
+
+            if (isBindMode) {
+                macContainer.classList.remove("hidden");
+                btnLogin.innerText = "บันทึกการผูกบอร์ด";
+                btnLogin.setAttribute("onclick", "handleBind()");
+                btnToggleBind.innerText = "← กลับไปหน้าเข้าสู่ระบบปกติ";
+            } else {
+                macContainer.classList.add("hidden");
+                btnLogin.innerText = "เข้าสู่ระบบ";
+                btnLogin.setAttribute("onclick", "handleLogin()");
+                btnToggleBind.innerText = "⚙️ ผูกอุปกรณ์ / เปลี่ยนบอร์ดใหม่";
+            }
+        }
+
+        // ฟังก์ชันเข้าสู่ระบบปกติ (ดึง MAC Address อัตโนมัติจากชีต Users)
+        function handleLogin() {
+            let user = document.getElementById("username").value.trim();
+            let pass = document.getElementById("password").value.trim();
+
+            if(!user || !pass) {
+                alert("กรุณากรอก Username และ Password ให้ครบถ้วน!");
+                return;
+            }
+
+            let url = `${SCRIPT_URL}?action=login&user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}`;
+            
+            fetch(url)
+            .then(res => res.text())
+            .then(result => {
+                if(result === "INVALID") {
+                    alert("ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง!");
+                } else if(result === "NOT_BOUND") {
+                    alert("บัญชีนี้ยังไม่เคยผูกอุปกรณ์ กรุณากดปุ่ม 'ผูกอุปกรณ์' ด้านล่างก่อนครับ");
+                } else {
+                    // ล็อกอินสำเร็จ ได้ MAC Address กลับมา
+                    currentDeviceMac = result;
+                    enterDashboard(currentDeviceMac);
+                }
+            })
+            .catch(err => alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: " + err));
+        }
+
+        // ฟังก์ชันผูกบอร์ดใหม่
+        function handleBind() {
             let user = document.getElementById("username").value.trim();
             let pass = document.getElementById("password").value.trim();
             let mac = document.getElementById("macAddress").value.trim();
 
             if(!user || !pass || !mac) {
-                alert("กรุณากรอกข้อมูลให้ครบทุกช่อง!");
+                alert("กรุณากรอกข้อมูลให้ครบทุกช่อง (รวมถึง MAC Address)!");
                 return;
             }
 
@@ -95,4 +151,63 @@
             .then(res => res.text())
             .then(result => {
                 if(result === "UPDATED" || result === "CREATED") {
+                    alert("ผูกอุปกรณ์สำเร็จ!");
                     currentDeviceMac = mac;
+                    enterDashboard(currentDeviceMac);
+                } else {
+                    alert("เกิดข้อผิดพลาดในการผูกอุปกรณ์!");
+                }
+            })
+            .catch(err => alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: " + err));
+        }
+
+        // เปลี่ยนหน้าจอเข้าสู่แดชบอร์ด
+        function enterDashboard(mac) {
+            document.getElementById("dispDeviceId").innerText = mac;
+            document.getElementById("loginSection").classList.add("hidden");
+            document.getElementById("dashboardSection").classList.remove("hidden");
+            
+            fetchDeviceData();
+            refreshInterval = setInterval(fetchDeviceData, 5000);
+        }
+
+        function fetchDeviceData() {
+            if(!currentDeviceMac) return;
+            let url = `${SCRIPT_URL}?action=getData&deviceId=${encodeURIComponent(currentDeviceMac)}`;
+
+            fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                if(data && data.power !== undefined) {
+                    document.getElementById("dispPower").innerText = data.power;
+                    document.getElementById("dispStatus").innerText = "สถานะ: " + data.status;
+                    document.getElementById("dispRain").innerText = (data.rain == "1") ? "🌧️ ฝนตก" : "☀️ ปกติ";
+                }
+            })
+            .catch(err => console.log("Error fetching data:", err));
+        }
+
+        function sendCleanCommand() {
+            if(!currentDeviceMac) return;
+            let url = `${SCRIPT_URL}?action=setCommand&deviceId=${encodeURIComponent(currentDeviceMac)}&cmd=CLEAN`;
+
+            fetch(url)
+            .then(res => res.text())
+            .then(result => {
+                if(result === "CMD_SET") {
+                    alert("ส่งคำสั่ง 'ล้างแผง' ไปยังบอร์ดสำเร็จ!");
+                } else {
+                    alert("ส่งคำสั่งไม่สำเร็จ กรุณาลองใหม่");
+                }
+            });
+        }
+
+        function logout() {
+            clearInterval(refreshInterval);
+            currentDeviceMac = "";
+            document.getElementById("dashboardSection").classList.add("hidden");
+            document.getElementById("loginSection").classList.remove("hidden");
+        }
+    </script>
+</body>
+</html>
