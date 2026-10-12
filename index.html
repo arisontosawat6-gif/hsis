@@ -73,8 +73,8 @@
     </div>
 
     <script>
-        // ใส่ Web App URL ของคุณเรียบร้อยแล้ว
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzM-z-uUANwv3jFTknBNlxKZPBdpR0ZJwGFDt-aPJmq1RyJ8YzA_IcLSoMuVKAO5Bvpg/exec";
+        // อัปเดต Web App URL ใหม่เรียบร้อยแล้ว
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxC6BCiTAfKzfO0hw4PP-z012lRoXI1XEhYba6ZPRTAYWWhw4rxmNlHLkswG5CgLsCLyw/exec";
 
         let currentDeviceMac = "";
         let refreshInterval = null;
@@ -96,56 +96,3 @@
             .then(result => {
                 if(result === "UPDATED" || result === "CREATED") {
                     currentDeviceMac = mac;
-                    document.getElementById("dispDeviceId").innerText = mac;
-                    document.getElementById("loginSection").classList.add("hidden");
-                    document.getElementById("dashboardSection").classList.remove("hidden");
-                    
-                    fetchDeviceData();
-                    refreshInterval = setInterval(fetchDeviceData, 5000);
-                } else {
-                    alert("รหัสผ่านไม่ถูกต้อง หรือเกิดข้อผิดพลาด!");
-                }
-            })
-            .catch(err => alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: " + err));
-        }
-
-        function fetchDeviceData() {
-            if(!currentDeviceMac) return;
-            let url = `${SCRIPT_URL}?action=getData&deviceId=${encodeURIComponent(currentDeviceMac)}`;
-
-            fetch(url)
-            .then(res => res.json())
-            .then(data => {
-                if(data && data.power !== undefined) {
-                    document.getElementById("dispPower").innerText = data.power;
-                    document.getElementById("dispStatus").innerText = "สถานะ: " + data.status;
-                    document.getElementById("dispRain").innerText = (data.rain == "1") ? "🌧️ ฝนตก" : "☀️ ปกติ";
-                }
-            })
-            .catch(err => console.log("Error fetching data:", err));
-        }
-
-        function sendCleanCommand() {
-            if(!currentDeviceMac) return;
-            let url = `${SCRIPT_URL}?action=setCommand&deviceId=${encodeURIComponent(currentDeviceMac)}&cmd=CLEAN`;
-
-            fetch(url)
-            .then(res => res.text())
-            .then(result => {
-                if(result === "CMD_SET") {
-                    alert("ส่งคำสั่ง 'ล้างแผง' ไปยังบอร์ดสำเร็จ!");
-                } else {
-                    alert("ส่งคำสั่งไม่สำเร็จ กรุณาลองใหม่");
-                }
-            });
-        }
-
-        function logout() {
-            clearInterval(refreshInterval);
-            currentDeviceMac = "";
-            document.getElementById("dashboardSection").classList.add("hidden");
-            document.getElementById("loginSection").classList.remove("hidden");
-        }
-    </script>
-</body>
-</html>
