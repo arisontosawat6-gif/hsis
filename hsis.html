@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cleanning - แดชบอร์ดควบคุมระบบโซลาร์เซลล์</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Prompt', sans-serif; background-color: #090d16; margin: 0; min-height: 100vh; overflow-x: hidden; }
+        .bg-company { position: fixed; inset: 0; background-image: url('https://github.com/arisontosawat6-gif/hsis/blob/main/IMG_6716.jpeg?raw=true'); background-size: cover; background-position: center; filter: blur(20px) brightness(0.25); transform: scale(1.1); z-index: -2; }
+        @keyframes floatSlow { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-6px); } }
+        .animate-float { animation: floatSlow 4s ease-in-out infinite; }
+    </style>
+</head>
+<body class="text-slate-100 flex items-center justify-center p-4 relative min-h-screen">
+    <div class="bg-company"></div>
+    <div class="absolute inset-0 bg-gradient-to-tr from-slate-950/80 via-slate-900/60 to-emerald-950/40 z-[-1]"></div>
+
+    <!-- ส่วนที่ 1: หน้า Login / ผูกบัญชี (แสดงตอนยังไม่เข้าสู่ระบบ) -->
+    <div id="loginSection" class="max-w-sm w-full bg-slate-900/75 backdrop-blur-2xl border border-emerald-500/20 shadow-2xl rounded-3xl p-6">
+        <div class="text-center mb-6">
+            <span class="text-[10px] text-emerald-400 uppercase bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 font-medium tracking-wide">Cleanning</span>
+            <h2 class="text-xl font-bold text-white mt-2">เข้าสู่ระบบ / ผูกอุปกรณ์</h2>
+            <p class="text-xs text-slate-400 mt-1">กรอกข้อมูลบัญชีและ MAC Address ของบอร์ด</p>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">Username:</label>
+                <input type="text" id="username" required class="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/80 text-white text-sm focus:outline-none focus:border-emerald-500 backdrop-blur-md">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">Password:</label>
+                <input type="password" id="password" required class="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/80 text-white text-sm focus:outline-none focus:border-emerald-500 backdrop-blur-md">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">Device MAC Address:</label>
+                <input type="text" id="macAddress" placeholder="เช่น A1B2C3D4E5F6" required class="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/80 text-white text-sm focus:outline-none focus:border-emerald-500 backdrop-blur-md">
+            </div>
+            <button onclick="handleLoginOrBind()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-emerald-600/30 transition cursor-pointer">เข้าสู่ระบบ / ผูกบอร์ด</button>
+        </div>
+    </div>
+
+    <!-- ส่วนที่ 2: หน้าแดชบอร์ดควบคุมหลัก (ซ่อนไว้จนกว่าจะล็อกอินสำเร็จ) -->
+    <div id="dashboardSection" class="max-w-md w-full bg-slate-900/75 backdrop-blur-2xl border border-emerald-500/20 shadow-2xl rounded-3xl p-6 relative animate-float hidden">
+        <div class="flex items-center justify-between mb-5">
+            <div>
+                <span class="text-[10px] text-emerald-400 uppercase bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 font-medium tracking-wide">Cleanning</span>
+                <h1 class="text-lg font-bold text-white mt-1">แดชบอร์ดควบคุม</h1>
+            </div>
+            <button onclick="logout()" class="text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-xl transition cursor-pointer">ออกจากระบบ</button>
+        </div>
+
+        <!-- กล่องแสดงกำลังไฟฟ้า (Power) -->
+        <div id="powerCard" class="bg-gradient-to-br from-emerald-700/90 to-teal-900/90 rounded-2xl p-6 text-white mb-5 shadow-lg border border-emerald-400/30 backdrop-blur-md">
+            <p class="text-emerald-100 text-xs font-semibold uppercase tracking-wider">อุปกรณ์: <span id="dispDeviceId">-</span></p>
+            <div class="mt-1 flex items-baseline gap-2">
+                <h2 id="dispPower" class="text-4xl font-extrabold">0.0</h2>
+                <span class="text-lg">W</span>
+            </div>
+        </div>
+
+        <!-- กล่องสถานะระบบ -->
+        <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 mb-5 backdrop-blur-md">
+            <p id="dispStatus" class="text-sm font-bold text-emerald-400">กำลังโหลดสถานะ...</p>
+            <p class="text-[11px] mt-1 text-slate-400">สภาพอากาศ: <span id="dispRain" class="text-sky-300">ปกติ</span></p>
+        </div>
+
+        <!-- ปุ่มควบคุมการทำงาน -->
+        <div class="space-y-3">
+            <button onclick="sendCleanCommand()" class="w-full block text-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-emerald-600/30 transition cursor-pointer">⚡ สั่งล้างแผงทันที (CLEAN)</button>
+        </div>
+    </div>
+
+    <script>
+        // ใส่ Web App URL ของคุณเรียบร้อยแล้ว
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzM-z-uUANwv3jFTknBNlxKZPBdpR0ZJwGFDt-aPJmq1RyJ8YzA_IcLSoMuVKAO5Bvpg/exec";
+
+        let currentDeviceMac = "";
+        let refreshInterval = null;
+
+        function handleLoginOrBind() {
+            let user = document.getElementById("username").value.trim();
+            let pass = document.getElementById("password").value.trim();
+            let mac = document.getElementById("macAddress").value.trim();
+
+            if(!user || !pass || !mac) {
+                alert("กรุณากรอกข้อมูลให้ครบทุกช่อง!");
+                return;
+            }
+
+            let url = `${SCRIPT_URL}?action=bindDevice&user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}&mac=${encodeURIComponent(mac)}`;
+            
+            fetch(url)
+            .then(res => res.text())
+            .then(result => {
+                if(result === "UPDATED" || result === "CREATED") {
+                    currentDeviceMac = mac;
+                    document.getElementById("dispDeviceId").innerText = mac;
+                    document.getElementById("loginSection").classList.add("hidden");
+                    document.getElementById("dashboardSection").classList.remove("hidden");
+                    
+                    fetchDeviceData();
+                    refreshInterval = setInterval(fetchDeviceData, 5000);
+                } else {
+                    alert("รหัสผ่านไม่ถูกต้อง หรือเกิดข้อผิดพลาด!");
+                }
+            })
+            .catch(err => alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: " + err));
+        }
+
+        function fetchDeviceData() {
+            if(!currentDeviceMac) return;
+            let url = `${SCRIPT_URL}?action=getData&deviceId=${encodeURIComponent(currentDeviceMac)}`;
+
+            fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                if(data && data.power !== undefined) {
+                    document.getElementById("dispPower").innerText = data.power;
+                    document.getElementById("dispStatus").innerText = "สถานะ: " + data.status;
+                    document.getElementById("dispRain").innerText = (data.rain == "1") ? "🌧️ ฝนตก" : "☀️ ปกติ";
+                }
+            })
+            .catch(err => console.log("Error fetching data:", err));
+        }
+
+        function sendCleanCommand() {
+            if(!currentDeviceMac) return;
+            let url = `${SCRIPT_URL}?action=setCommand&deviceId=${encodeURIComponent(currentDeviceMac)}&cmd=CLEAN`;
+
+            fetch(url)
+            .then(res => res.text())
+            .then(result => {
+                if(result === "CMD_SET") {
+                    alert("ส่งคำสั่ง 'ล้างแผง' ไปยังบอร์ดสำเร็จ!");
+                } else {
+                    alert("ส่งคำสั่งไม่สำเร็จ กรุณาลองใหม่");
+                }
+            });
+        }
+
+        function logout() {
+            clearInterval(refreshInterval);
+            currentDeviceMac = "";
+            document.getElementById("dashboardSection").classList.add("hidden");
+            document.getElementById("loginSection").classList.remove("hidden");
+        }
+    </script>
+</body>
+</html>
