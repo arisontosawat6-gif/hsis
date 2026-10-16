@@ -23,7 +23,16 @@
     <div class="bg-company"></div>
     <div class="absolute inset-0 bg-gradient-to-tr from-slate-950/90 via-slate-900/70 to-emerald-950/50 z-[-1]"></div>
 
-    <!-- 0. หน้าโหลดดิ้ง (Loading Screen) -->
+    <!-- Toast Notification (กล่องแจ้งเตือนมุมขวาบน) -->
+    <div id="toast" class="fixed top-5 right-5 z-50 transform translate-x-full transition-all duration-300 bg-slate-900/95 border border-emerald-500/40 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl">
+        <span id="toastIcon" class="text-emerald-400 text-lg">✅</span>
+        <div>
+            <h4 id="toastTitle" class="text-xs font-bold text-emerald-400">แจ้งเตือนระบบ</h4>
+            <p id="toastMessage" class="text-[11px] text-slate-300">ข้อความแจ้งเตือน...</p>
+        </div>
+    </div>
+
+    <!-- 0. หน้าโหลดดิ้ง -->
     <div id="loadingScreen" class="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 flex flex-col items-center justify-center transition-opacity duration-500">
         <div class="relative mb-4">
             <div class="absolute inset-0 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin-slow"></div>
@@ -81,7 +90,13 @@
                 <img src="https://github.com/arisontosawat6-gif/hsis/raw/main/logo.jpeg" class="w-10 h-10 rounded-full object-cover border border-emerald-500/40 shadow-md">
                 <div>
                     <h1 class="text-base font-bold text-white">แดชบอร์ดควบคุม</h1>
-                    <p class="text-[10px] text-emerald-400">ID: <span id="dispDeviceId">-</span></p>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <p class="text-[10px] text-emerald-400">ID: <span id="dispDeviceId">-</span></p>
+                        <div class="flex items-center gap-1.5 bg-slate-800/80 px-2 py-0.5 rounded-full border border-slate-700/50">
+                            <span id="onlineDot" class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                            <span id="onlineStatusText" class="text-[9px] text-rose-400 font-medium">ออฟไลน์</span>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="flex gap-2">
@@ -99,7 +114,7 @@
             </div>
         </div>
 
-        <!-- สถานะและประวัติการทำงานล่าสุด -->
+        <!-- สถานะและประวัติการทำงาน -->
         <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 mb-4 space-y-2">
             <div class="flex justify-between items-center">
                 <p id="dispStatus" class="text-sm font-bold text-emerald-400">สถานะ: ปกติ</p>
@@ -138,286 +153,4 @@
 
         <!-- 2 ปุ่มควบคุมหลัก -->
         <div class="grid grid-cols-2 gap-3">
-            <button onclick="sendCommand('CLEAN')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs shadow-lg shadow-emerald-600/30 transition cursor-pointer">⚡ สั่งล้างแผง</button>
-            <button onclick="sendCommand('SPRAY')" class="bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 rounded-xl text-xs shadow-lg shadow-sky-600/30 transition cursor-pointer">💧 ฉีดน้ำ</button>
-        </div>
-    </div>
-
-    <!-- 3. หน้าตั้งค่า -->
-    <div id="settingsSection" class="max-w-md w-full bg-slate-900/90 backdrop-blur-2xl border border-emerald-500/20 shadow-2xl rounded-3xl p-6 relative hidden">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-base font-bold text-white">⚙️ ตั้งค่าระบบและอุปกรณ์</h2>
-            <button onclick="switchView('dashboard')" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-xl text-slate-300 cursor-pointer">← กลับ</button>
-        </div>
-
-        <div class="space-y-4 text-xs">
-            <!-- เลือก Inverter และช่องกรอก Custom Register -->
-            <div class="bg-slate-800/50 border border-slate-700/50 p-3 rounded-xl space-y-2">
-                <label class="block font-medium text-emerald-400">1. ตัวรับขาเข้า RS-485 (Inverter & Register):</label>
-                <select id="settingInverterType" onchange="handleSettingInverterChange()" class="w-full p-2 rounded-lg bg-slate-800 border border-slate-700 text-white">
-                    <option value="Huawei">Huawei (Reg: 32080)</option>
-                    <option value="Sungrow">Sungrow (Reg: 5031)</option>
-                    <option value="Growatt">Growatt (Reg: 3)</option>
-                    <option value="Solis">Solis (Reg: 3004)</option>
-                    <option value="Deye">Deye (Reg: 526)</option>
-                    <option value="GoodWe">GoodWe (Reg: 35103)</option>
-                    <option value="SMA">SMA (Reg: 30775)</option>
-                    <option value="SolarEdge">SolarEdge (SunSpec)</option>
-                    <option value="Custom">กำหนดเอง (Custom Register)</option>
-                </select>
-
-                <!-- ช่องกรอก Custom Register Address (ซ่อนไว้จนกว่าจะเลือก Custom) -->
-                <div id="customRegContainer" class="hidden pt-1">
-                    <label class="block text-[11px] text-emerald-300 mb-1">ระบุ Modbus Register Address กำหนดเอง:</label>
-                    <input type="number" id="settingCustomReg" placeholder="เช่น 32080 หรือ 4001" onchange="updateInverterSetting()" class="w-full p-2 rounded-lg bg-slate-800 border border-emerald-500/50 text-white text-xs">
-                </div>
-            </div>
-
-            <!-- หน้าตั้งค่าเทสระบบ (ตั้งเวลาทำงาน 30 วิ - 5 นาที) -->
-            <div class="bg-slate-800/50 border border-slate-700/50 p-3 rounded-xl space-y-2">
-                <label class="block font-medium text-emerald-400">2. หน้าตั้งค่าเทสระบบ (Test Timer):</label>
-                <p class="text-[11px] text-slate-400">เลือกระยะเวลาทดสอบการทำงานของมอเตอร์/ปั๊มน้ำ (30 วินาที - 5 นาที)</p>
-                <div class="flex gap-2">
-                    <select id="testTimerSeconds" class="w-full p-2 rounded-lg bg-slate-800 border border-slate-700 text-white">
-                        <option value="30">30 วินาที</option>
-                        <option value="60">1 นาที</option>
-                        <option value="120">2 นาที</option>
-                        <option value="180">3 นาที</option>
-                        <option value="240">4 นาที</option>
-                        <option value="300">5 นาที</option>
-                    </select>
-                    <button onclick="sendCustomTestTimer()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-4 py-2 rounded-lg cursor-pointer transition">ทดสอบ</button>
-                </div>
-            </div>
-
-            <div class="bg-slate-800/50 border border-slate-700/50 p-3 rounded-xl">
-                <label class="block font-medium text-emerald-400 mb-1">3. ระบบตรวจสอบอุปกรณ์ (Health Check):</label>
-                <button onclick="checkDeviceHealth()" class="w-full bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg cursor-pointer transition">🔍 ตรวจสอบเซ็นเซอร์/มอเตอร์</button>
-                <p id="healthResult" class="text-[11px] text-slate-400 mt-2">สถานะ: ยังไม่ได้ตรวจสอบ</p>
-            </div>
-
-            <div class="bg-rose-950/20 border border-rose-500/30 p-3 rounded-xl">
-                <label class="block font-medium text-rose-400 mb-1">4. พื้นที่อันตราย</label>
-                <button onclick="deleteAccount()" class="w-full bg-rose-600 hover:bg-rose-500 text-white py-2 rounded-lg cursor-pointer transition">🗑️ ลบบัญชีผู้ใช้นี้ออกจากระบบ</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxuuriwrfm3ATirBtf73HsVlx39sdTHNdqK4oYfEswDJQpPpO55Qvz3g1c8-LmpjTozxQ/exec";
-
-        let currentDeviceMac = "";
-        let currentUser = "";
-        let refreshInterval = null;
-        let isBindMode = false;
-        let lastRunTimestamp = null;
-
-        window.addEventListener("load", () => {
-            setTimeout(() => {
-                let loader = document.getElementById("loadingScreen");
-                loader.style.opacity = "0";
-                setTimeout(() => {
-                    loader.style.display = "none";
-                    document.getElementById("loginSection").classList.remove("hidden");
-                }, 400);
-            }, 1200);
-        });
-
-        function toggleBindMode() {
-            isBindMode = !isBindMode;
-            let macContainer = document.getElementById("macContainer");
-            let btnLogin = document.getElementById("btnLogin");
-            let btnToggleBind = document.getElementById("btnToggleBind");
-
-            if (isBindMode) {
-                macContainer.classList.remove("hidden");
-                btnLogin.innerText = "บันทึกการผูกบอร์ด";
-                btnLogin.setAttribute("onclick", "handleBind()");
-                btnToggleBind.innerText = "← กลับไปหน้าเข้าสู่ระบบปกติ";
-            } else {
-                macContainer.classList.add("hidden");
-                btnLogin.innerText = "เข้าสู่ระบบ";
-                btnLogin.setAttribute("onclick", "handleLogin()");
-                btnToggleBind.innerText = "⚙️ ผูกอุปกรณ์ / เปลี่ยนบอร์ดใหม่";
-            }
-        }
-
-        function handleLogin() {
-            let user = document.getElementById("username").value.trim();
-            let pass = document.getElementById("password").value.trim();
-            if(!user || !pass) { alert("กรุณากรอกข้อมูลให้ครบ!"); return; }
-
-            currentUser = user;
-            fetch(`${SCRIPT_URL}?action=login&user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}`)
-            .then(res => res.text())
-            .then(result => {
-                if(result === "INVALID") alert("รหัสผ่านไม่ถูกต้อง!");
-                else if(result === "NOT_BOUND") alert("บัญชีนี้ยังไม่ผูกอุปกรณ์");
-                else { currentDeviceMac = result; enterDashboard(); }
-            });
-        }
-
-        function handleBind() {
-            let user = document.getElementById("username").value.trim();
-            let pass = document.getElementById("password").value.trim();
-            let mac = document.getElementById("macAddress").value.trim();
-            let inverter = document.getElementById("regInverterType").value;
-            let customReg = (inverter === "Custom") ? document.getElementById("settingCustomReg").value : "";
-
-            if(!user || !pass || !mac) { alert("กรุณากรอกให้ครบทุกช่อง!"); return; }
-
-            currentUser = user;
-            fetch(`${SCRIPT_URL}?action=bindDevice&user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}&mac=${encodeURIComponent(mac)}&inverter=${encodeURIComponent(inverter)}&customReg=${encodeURIComponent(customReg)}`)
-            .then(res => res.text())
-            .then(result => {
-                if(result === "UPDATED" || result === "CREATED") {
-                    alert("ผูกอุปกรณ์และบันทึกค่าสำเร็จ!");
-                    currentDeviceMac = mac;
-                    enterDashboard();
-                }
-            });
-        }
-
-        function handleSettingInverterChange() {
-            let inverter = document.getElementById("settingInverterType").value;
-            let customContainer = document.getElementById("customRegContainer");
-
-            if(inverter === "Custom") {
-                customContainer.classList.remove("hidden");
-            } else {
-                customContainer.classList.add("hidden");
-                updateInverterSetting();
-            }
-        }
-
-        function updateInverterSetting() {
-            let inverter = document.getElementById("settingInverterType").value;
-            let customReg = (inverter === "Custom") ? document.getElementById("settingCustomReg").value : "";
-            if(!currentUser) return;
-
-            fetch(`${SCRIPT_URL}?action=updateInverter&user=${encodeURIComponent(currentUser)}&inverter=${encodeURIComponent(inverter)}&customReg=${encodeURIComponent(customReg)}`)
-            .then(res => res.text());
-        }
-
-        function enterDashboard() {
-            document.getElementById("dispDeviceId").innerText = currentDeviceMac;
-            document.getElementById("loginSection").classList.add("hidden");
-            document.getElementById("dashboardSection").classList.remove("hidden");
-            fetchDeviceData();
-            refreshInterval = setInterval(fetchDeviceData, 5000);
-        }
-
-        function switchView(view) {
-            document.getElementById("dashboardSection").classList.add("hidden");
-            document.getElementById("settingsSection").classList.add("hidden");
-            if(view === 'dashboard') document.getElementById("dashboardSection").classList.remove("hidden");
-            if(view === 'settings') document.getElementById("settingsSection").classList.remove("hidden");
-        }
-
-        function fetchDeviceData() {
-            if(!currentDeviceMac) return;
-            fetch(`${SCRIPT_URL}?action=getData&deviceId=${encodeURIComponent(currentDeviceMac)}`)
-            .then(res => res.json())
-            .then(data => {
-                if(data && data.power !== undefined) {
-                    document.getElementById("dispPower").innerText = data.power;
-                    document.getElementById("dispStatus").innerText = "สถานะ: " + data.status;
-                    document.getElementById("dispRain").innerText = (data.rain == "1") ? "🌧️ ฝนตก" : "☀️ ปกติ";
-
-                    if(data.status.includes("Cleaning") || data.status.includes("Active")) {
-                        lastRunTimestamp = new Date();
-                    }
-                    updateLastRunDisplay();
-                }
-            });
-        }
-
-        function updateLastRunDisplay() {
-            let el = document.getElementById("dispLastRun");
-            if(!lastRunTimestamp) {
-                el.innerText = "ยังไม่มีประวัติการทำงานรอบนี้";
-                return;
-            }
-            let diffMs = new Date() - lastRunTimestamp;
-            let diffMins = Math.floor(diffMs / 60000);
-            let diffHours = Math.floor(diffMins / 60);
-
-            if(diffMins < 1) {
-                el.innerText = "เมื่อสักครู่นี้";
-            } else if(diffMins < 60) {
-                el.innerText = `เมื่อ ${diffMins} นาทีที่แล้ว`;
-            } else {
-                el.innerText = `เมื่อ ${diffHours} ชั่วโมงที่แล้ว`;
-            }
-        }
-
-        function setOperationMode(mode) {
-            let btnAuto = document.getElementById("btnAuto");
-            let btnManual = document.getElementById("btnManual");
-            let badge = document.getElementById("dispModeBadge");
-
-            if(mode === 'AUTO') {
-                btnAuto.className = "py-2 rounded-xl text-xs font-bold border transition cursor-pointer bg-emerald-600 text-white border-emerald-500";
-                btnManual.className = "py-2 rounded-xl text-xs font-bold border transition cursor-pointer bg-slate-800 text-slate-300 border-slate-700";
-                badge.innerText = "Auto Mode";
-            } else {
-                btnManual.className = "py-2 rounded-xl text-xs font-bold border transition cursor-pointer bg-amber-600 text-white border-amber-500";
-                btnAuto.className = "py-2 rounded-xl text-xs font-bold border transition cursor-pointer bg-slate-800 text-slate-300 border-slate-700";
-                badge.innerText = "Manual Mode";
-            }
-            sendCommand("MODE_" + mode);
-        }
-
-        function updateScheduleHours() {
-            let hours = document.getElementById("scheduleHours").value;
-            sendCommand("SCHEDULE_" + hours + "H");
-            alert(`ตั้งรอบเวลาทำงานอัตโนมัติทุกๆ ${hours} ชั่วโมง เรียบร้อย`);
-        }
-
-        function sendCommand(cmd) {
-            if(!currentDeviceMac) return;
-            lastRunTimestamp = new Date();
-            updateLastRunDisplay();
-
-            fetch(`${SCRIPT_URL}?action=setCommand&deviceId=${encodeURIComponent(currentDeviceMac)}&cmd=${cmd}`)
-            .then(res => res.text())
-            .then(res => {
-                if(res === "CMD_SET") alert("ส่งคำสั่ง '" + cmd + "' สำเร็จ!");
-            });
-        }
-
-        function sendCustomTestTimer() {
-            let sec = document.getElementById("testTimerSeconds").value;
-            sendCommand("TEST_SEC_" + sec);
-            alert(`ส่งคำสั่งทดสอบระบบ (ทำงานนาน ${sec} วินาที) ไปยังบอร์ดแล้ว`);
-        }
-
-        function checkDeviceHealth() {
-            document.getElementById("healthResult").innerText = "สถานะ: กำลังตรวจสอบการตอบสนองฮาร์ดแวร์...";
-            setTimeout(() => {
-                document.getElementById("healthResult").innerText = "สถานะ: เซ็นเซอร์, RS485 และมอเตอร์ ทำงานปกติ (Ready)";
-            }, 1500);
-        }
-
-        function deleteAccount() {
-            if(confirm("คุณต้องการลบบัญชีผู้ใช้นี้ออกจากระบบใช่หรือไม่?")) {
-                fetch(`${SCRIPT_URL}?action=deleteAccount&user=${encodeURIComponent(currentUser)}`)
-                .then(res => res.text())
-                .then(res => {
-                    if(res === "DELETED") { alert("ลบบัญชีเรียบร้อย"); logout(); }
-                });
-            }
-        }
-
-        function logout() {
-            clearInterval(refreshInterval);
-            currentDeviceMac = "";
-            currentUser = "";
-            lastRunTimestamp = null;
-            document.getElementById("dashboardSection").classList.add("hidden");
-            document.getElementById("settingsSection").classList.add("hidden");
-            document.getElementById("loginSection").classList.remove("hidden");
-        }
-    </script>
-</body>
-</html>
+            <button onclick="sendCommand('CLEAN')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs shadow-lg shadow-emerald-6
