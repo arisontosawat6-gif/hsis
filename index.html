@@ -4,10 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cleanning - โซลาร์เซลล์แดชบอร์ด</title>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="https://github.com/arisontosawat6-gif/hsis/raw/main/logo.jpeg">
-    
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -15,142 +11,163 @@
         .bg-company { position: fixed; inset: 0; background-image: url('https://github.com/arisontosawat6-gif/hsis/raw/main/logo.jpeg'); background-size: cover; background-position: center; filter: blur(25px) brightness(0.2); transform: scale(1.1); z-index: -2; }
         @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.3); } 50% { box-shadow: 0 0 30px rgba(16, 185, 129, 0.6); } }
         .glow-card { animation: pulseGlow 3s infinite ease-in-out; }
-        @keyframes spinSlow { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .animate-spin-slow { animation: spinSlow 8s linear infinite; }
     </style>
 </head>
 <body class="text-slate-100 flex items-center justify-center p-4 relative min-h-screen">
     <div class="bg-company"></div>
     <div class="absolute inset-0 bg-gradient-to-tr from-slate-950/90 via-slate-900/70 to-emerald-950/50 z-[-1]"></div>
 
-    <!-- Toast Notification (กล่องแจ้งเตือนมุมขวาบน) -->
+    <!-- Toast Notification -->
     <div id="toast" class="fixed top-5 right-5 z-50 transform translate-x-full transition-all duration-300 bg-slate-900/95 border border-emerald-500/40 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl">
         <span id="toastIcon" class="text-emerald-400 text-lg">✅</span>
         <div>
             <h4 id="toastTitle" class="text-xs font-bold text-emerald-400">แจ้งเตือนระบบ</h4>
-            <p id="toastMessage" class="text-[11px] text-slate-300">ข้อความแจ้งเตือน...</p>
+            <p id="toastMessage" class="text-[11px] text-slate-300">ข้อความ...</p>
         </div>
     </div>
 
-    <!-- 0. หน้าโหลดดิ้ง -->
-    <div id="loadingScreen" class="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 flex flex-col items-center justify-center transition-opacity duration-500">
-        <div class="relative mb-4">
-            <div class="absolute inset-0 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin-slow"></div>
-            <img src="https://github.com/arisontosawat6-gif/hsis/raw/main/logo.jpeg" class="w-24 h-24 rounded-full object-cover border-2 border-emerald-400/60 shadow-2xl p-1">
-        </div>
-        <h2 class="text-lg font-bold text-white tracking-wider">CLEANNING SYSTEM</h2>
-        <p class="text-xs text-emerald-400 mt-1 animate-pulse">กำลังเชื่อมต่อระบบควบคุมอัจฉริยะ...</p>
-    </div>
-
-    <!-- 1. หน้า Login / ผูกบัญชี -->
-    <div id="loginSection" class="max-w-sm w-full bg-slate-900/85 backdrop-blur-2xl border border-emerald-500/20 shadow-2xl rounded-3xl p-6 hidden">
+    <!-- หน้า Login -->
+    <div id="loginSection" class="max-w-sm w-full bg-slate-900/85 backdrop-blur-2xl border border-emerald-500/20 shadow-2xl rounded-3xl p-6">
         <div class="text-center mb-6">
-            <img src="https://github.com/arisontosawat6-gif/hsis/raw/main/logo.jpeg" class="w-16 h-16 rounded-full mx-auto object-cover border-2 border-emerald-500/50 shadow-lg mb-3">
             <h2 class="text-xl font-bold text-white">ระบบควบคุมการล้างแผง</h2>
-            <p class="text-xs text-slate-400 mt-1">กรอกข้อมูลบัญชีผู้ใช้งานของคุณ</p>
         </div>
         <div class="space-y-4">
-            <div>
-                <label class="block text-xs text-slate-400 mb-1">Username:</label>
-                <input type="text" id="username" class="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/80 text-white text-sm focus:outline-none focus:border-emerald-500">
-            </div>
-            <div>
-                <label class="block text-xs text-slate-400 mb-1">Password:</label>
-                <input type="password" id="password" class="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/80 text-white text-sm focus:outline-none focus:border-emerald-500">
-            </div>
+            <input type="text" id="username" placeholder="Username" class="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/80 text-white text-sm">
+            <input type="password" id="password" placeholder="Password" class="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/80 text-white text-sm">
+            
             <div id="macContainer" class="hidden space-y-3">
-                <div>
-                    <label class="block text-xs text-emerald-400 mb-1">Device MAC Address (ครั้งแรก):</label>
-                    <input type="text" id="macAddress" placeholder="เช่น A1B2C3D4E5F6" class="w-full px-4 py-3 rounded-xl border border-emerald-500/50 bg-slate-800/80 text-white text-sm focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs text-emerald-400 mb-1">รุ่น Inverter (RS-485):</label>
-                    <select id="regInverterType" class="w-full px-4 py-3 rounded-xl border border-emerald-500/50 bg-slate-800/80 text-white text-sm focus:outline-none">
-                        <option value="Huawei">Huawei (Reg: 32080)</option>
-                        <option value="Sungrow">Sungrow (Reg: 5031)</option>
-                        <option value="Growatt">Growatt (Reg: 3)</option>
-                        <option value="Solis">Solis (Reg: 3004)</option>
-                        <option value="Deye">Deye (Reg: 526)</option>
-                        <option value="GoodWe">GoodWe (Reg: 35103)</option>
-                        <option value="SMA">SMA (Reg: 30775)</option>
-                        <option value="SolarEdge">SolarEdge (SunSpec)</option>
-                        <option value="Custom">กำหนดเอง (Custom Register)</option>
-                    </select>
-                </div>
+                <input type="text" id="macAddress" placeholder="MAC Address เช่น A1B2C3D4E5F6" class="w-full px-4 py-3 rounded-xl border border-emerald-500/50 bg-slate-800/80 text-white text-sm">
+                <select id="regInverterType" class="w-full px-4 py-3 rounded-xl border border-emerald-500/50 bg-slate-800/80 text-white text-sm">
+                    <option value="Huawei">Huawei</option>
+                    <option value="Sungrow">Sungrow</option>
+                    <option value="Growatt">Growatt</option>
+                    <option value="Deye">Deye</option>
+                </select>
             </div>
-            <button onclick="handleLogin()" id="btnLogin" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-emerald-600/30 transition cursor-pointer">เข้าสู่ระบบ</button>
-            <button onclick="toggleBindMode()" id="btnToggleBind" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium py-2.5 rounded-xl text-xs transition cursor-pointer">⚙️ ผูกอุปกรณ์ / เปลี่ยนบอร์ดใหม่</button>
+            
+            <button onclick="handleLogin()" id="btnLogin" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer">เข้าสู่ระบบ</button>
+            <button onclick="toggleBindMode()" id="btnToggleBind" class="w-full bg-slate-800 text-slate-300 py-2.5 rounded-xl text-xs transition cursor-pointer">⚙️ ผูกอุปกรณ์ใหม่</button>
         </div>
     </div>
 
-    <!-- 2. หน้าแดชบอร์ดหลัก -->
+    <!-- แดชบอร์ดหลัก -->
     <div id="dashboardSection" class="max-w-md w-full bg-slate-900/85 backdrop-blur-2xl border border-emerald-500/20 shadow-2xl rounded-3xl p-6 relative hidden">
         <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center gap-3">
-                <img src="https://github.com/arisontosawat6-gif/hsis/raw/main/logo.jpeg" class="w-10 h-10 rounded-full object-cover border border-emerald-500/40 shadow-md">
-                <div>
-                    <h1 class="text-base font-bold text-white">แดชบอร์ดควบคุม</h1>
-                    <div class="flex items-center gap-2 mt-0.5">
-                        <p class="text-[10px] text-emerald-400">ID: <span id="dispDeviceId">-</span></p>
-                        <div class="flex items-center gap-1.5 bg-slate-800/80 px-2 py-0.5 rounded-full border border-slate-700/50">
-                            <span id="onlineDot" class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-                            <span id="onlineStatusText" class="text-[9px] text-rose-400 font-medium">ออฟไลน์</span>
-                        </div>
-                    </div>
+            <div>
+                <h1 class="text-base font-bold text-white">แดชบอร์ดควบคุม</h1>
+                <p class="text-[10px] text-emerald-400">ID: <span id="dispDeviceId">-</span></p>
+                <div class="flex items-center gap-1.5 mt-1">
+                    <span id="onlineDot" class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                    <span id="onlineStatusText" class="text-[9px] text-rose-400 font-medium">ออฟไลน์</span>
                 </div>
             </div>
-            <div class="flex gap-2">
-                <button onclick="switchView('settings')" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-xl text-slate-300 cursor-pointer transition">⚙️ ตั้งค่า</button>
-                <button onclick="logout()" class="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-xl cursor-pointer transition">ออก</button>
-            </div>
+            <button onclick="logout()" class="text-xs text-rose-400 bg-rose-500/10 px-3 py-1.5 rounded-xl cursor-pointer">ออก</button>
         </div>
 
-        <!-- กำลังไฟ -->
-        <div class="bg-gradient-to-br from-emerald-700/90 to-teal-900/90 rounded-2xl p-5 text-white mb-4 glow-card border border-emerald-400/30">
-            <p class="text-emerald-100 text-xs font-semibold uppercase tracking-wider">กำลังไฟฟ้าโซลาร์เซลล์</p>
-            <div class="mt-1 flex items-baseline gap-2">
-                <h2 id="dispPower" class="text-4xl font-extrabold">0.0</h2>
-                <span class="text-lg">W</span>
-            </div>
+        <div class="bg-emerald-700/90 rounded-2xl p-5 text-white mb-4 glow-card">
+            <p class="text-emerald-100 text-xs">กำลังไฟฟ้าโซลาร์เซลล์</p>
+            <h2 id="dispPower" class="text-4xl font-extrabold mt-1">0.0 W</h2>
         </div>
 
-        <!-- สถานะและประวัติการทำงาน -->
-        <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 mb-4 space-y-2">
-            <div class="flex justify-between items-center">
-                <p id="dispStatus" class="text-sm font-bold text-emerald-400">สถานะ: ปกติ</p>
-                <span id="dispModeBadge" class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">Auto Mode</span>
-            </div>
-            <p class="text-[11px] text-slate-300">สภาพอากาศ: <span id="dispRain" class="text-sky-300">ปกติ</span></p>
-            <p class="text-[11px] text-slate-400 border-t border-slate-700/50 pt-2">🕒 ทำงานล่าสุด: <span id="dispLastRun" class="text-amber-300">ยังไม่มีประวัติการทำงาน</span></p>
-        </div>
-
-        <!-- เลือกโหมด Auto / Manual -->
-        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-3 mb-4">
-            <label class="block text-xs font-medium text-emerald-400 mb-2">โหมดการทำงานระบบ:</label>
-            <div class="grid grid-cols-2 gap-2">
-                <button onclick="setOperationMode('AUTO')" id="btnAuto" class="py-2 rounded-xl text-xs font-bold border transition cursor-pointer bg-emerald-600 text-white border-emerald-500">🤖 AUTO</button>
-                <button onclick="setOperationMode('MANUAL')" id="btnManual" class="py-2 rounded-xl text-xs font-bold border transition cursor-pointer bg-slate-800 text-slate-300 border-slate-700">👤 MANUAL</button>
-            </div>
-        </div>
-
-        <!-- ตั้งเวลาการทำงานรอบหลัก (1-12 ชม.) -->
-        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-3 mb-4">
-            <label class="block text-xs font-medium text-emerald-400 mb-2">ตั้งรอบเวลาทำงานอัตโนมัติ (ชั่วโมง):</label>
-            <select id="scheduleHours" onchange="updateScheduleHours()" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs">
-                <option value="1">ทุกๆ 1 ชั่วโมง</option>
-                <option value="2">ทุกๆ 2 ชั่วโมง</option>
-                <option value="3">ทุกๆ 3 ชั่วโมง</option>
-                <option value="4">ทุกๆ 4 ชั่วโมง</option>
-                <option value="5">ทุกๆ 5 ชั่วโมง</option>
-                <option value="6">ทุกๆ 6 ชั่วโมง</option>
-                <option value="8">ทุกๆ 8 ชั่วโมง</option>
-                <option value="9">ทุกๆ 9 ชั่วโมง</option>
-                <option value="10">ทุกๆ 10 ชั่วโมง</option>
-                <option value="11">ทุกๆ 11 ชั่วโมง</option>
-                <option value="12">ทุกๆ 12 ชั่วโมง</option>
-            </select>
-        </div>
-
-        <!-- 2 ปุ่มควบคุมหลัก -->
         <div class="grid grid-cols-2 gap-3">
-            <button onclick="sendCommand('CLEAN')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs shadow-lg shadow-emerald-6
+            <button onclick="sendCommand('CLEAN')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs cursor-pointer">⚡ สั่งล้างแผง</button>
+            <button onclick="sendCommand('SPRAY')" class="bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 rounded-xl text-xs cursor-pointer">💧 ฉีดน้ำ</button>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwbsNnYIntCyX5Vi3dYyLIWIlVnftVOKVSr3Rk8ueLsngaoi1w6HI2z8p6rAEBz_7fFmQ/exec";
+        let currentDeviceMac = "", currentUser = "", refreshInterval = null, isBindMode = false;
+
+        function showToast(title, message, type = 'success') {
+            let toast = document.getElementById("toast");
+            document.getElementById("toastTitle").innerText = title;
+            document.getElementById("toastMessage").innerText = message;
+            toast.className = "fixed top-5 right-5 z-50 transform translate-x-0 transition-all duration-300 bg-slate-900/95 border border-emerald-500/40 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl";
+            setTimeout(() => {
+                toast.className = "fixed top-5 right-5 z-50 transform translate-x-full transition-all duration-300 bg-slate-900/95 border border-emerald-500/40 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl";
+            }, 3000);
+        }
+
+        function toggleBindMode() {
+            isBindMode = !isBindMode;
+            document.getElementById("macContainer").classList.toggle("hidden", !isBindMode);
+            document.getElementById("btnLogin").innerText = isBindMode ? "บันทึกการผูกบอร์ด" : "เข้าสู่ระบบ";
+            document.getElementById("btnLogin").setAttribute("onclick", isBindMode ? "handleBind()" : "handleLogin()");
+        }
+
+        function handleLogin() {
+            let user = document.getElementById("username").value.trim();
+            let pass = document.getElementById("password").value.trim();
+            if(!user || !pass) { showToast("แจ้งเตือน", "กรุณากรอกข้อมูลให้ครบ!", "error"); return; }
+            fetch(`${SCRIPT_URL}?action=login&user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}`)
+            .then(res => res.text())
+            .then(res => {
+                if(res === "INVALID") showToast("ผิดพลาด", "รหัสผ่านไม่ถูกต้อง", "error");
+                else if(res === "NOT_BOUND") showToast("แจ้งเตือน", "ยังไม่ผูกอุปกรณ์", "error");
+                else { currentDeviceMac = res; enterDashboard(); }
+            });
+        }
+
+        function handleBind() {
+            let user = document.getElementById("username").value.trim();
+            let pass = document.getElementById("password").value.trim();
+            let mac = document.getElementById("macAddress").value.trim();
+            let inverter = document.getElementById("regInverterType").value;
+            fetch(`${SCRIPT_URL}?action=bindDevice&user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}&mac=${encodeURIComponent(mac)}&inverter=${encodeURIComponent(inverter)}`)
+            .then(res => res.text())
+            .then(res => {
+                if(res === "UPDATED" || res === "CREATED") {
+                    currentDeviceMac = mac;
+                    enterDashboard();
+                }
+            });
+        }
+
+        function enterDashboard() {
+            document.getElementById("dispDeviceId").innerText = currentDeviceMac;
+            document.getElementById("loginSection").classList.add("hidden");
+            document.getElementById("dashboardSection").classList.remove("hidden");
+            fetchDeviceData();
+            refreshInterval = setInterval(fetchDeviceData, 3000); // รีเฟรชทุก 3 วินาที
+        }
+
+        function fetchDeviceData() {
+            if(!currentDeviceMac) return;
+            fetch(`${SCRIPT_URL}?action=getData&deviceId=${encodeURIComponent(currentDeviceMac)}`)
+            .then(res => res.json())
+            .then(data => {
+                if(data && data.power !== undefined) {
+                    document.getElementById("dispPower").innerText = data.power + " W";
+                    let dot = document.getElementById("onlineDot"), text = document.getElementById("onlineStatusText");
+                    if(data.online) {
+                        dot.className = "w-2 h-2 rounded-full bg-emerald-500 shadow-md";
+                        text.className = "text-[9px] text-emerald-400 font-medium";
+                        text.innerText = "ออนไลน์";
+                    } else {
+                        dot.className = "w-2 h-2 rounded-full bg-rose-500 animate-pulse";
+                        text.className = "text-[9px] text-rose-400 font-medium";
+                        text.innerText = "ออฟไลน์";
+                    }
+                }
+            });
+        }
+
+        function sendCommand(cmd) {
+            if(!currentDeviceMac) return;
+            fetch(`${SCRIPT_URL}?action=setCommand&deviceId=${encodeURIComponent(currentDeviceMac)}&cmd=${cmd}`)
+            .then(res => res.text())
+            .then(res => {
+                if(res === "CMD_SET") showToast("สำเร็จ", "ส่งคำสั่ง '" + cmd + "' เรียบร้อย");
+            });
+        }
+
+        function logout() {
+            clearInterval(refreshInterval);
+            currentDeviceMac = "";
+            document.getElementById("dashboardSection").classList.add("hidden");
+            document.getElementById("loginSection").classList.remove("hidden");
+        }
+    </script>
+</body>
+</html>
