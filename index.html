@@ -38,10 +38,18 @@
             <div id="macContainer" class="hidden space-y-3">
                 <input type="text" id="macAddress" placeholder="MAC Address เช่น A1B2C3D4E5F6" class="w-full px-4 py-3 rounded-xl border border-emerald-500/50 bg-slate-800/80 text-white text-sm">
                 <select id="regInverterType" class="w-full px-4 py-3 rounded-xl border border-emerald-500/50 bg-slate-800/80 text-white text-sm">
-                    <option value="Huawei">Huawei</option>
-                    <option value="Sungrow">Sungrow</option>
-                    <option value="Growatt">Growatt</option>
-                    <option value="Deye">Deye</option>
+                    <option value="Huawei">Huawei (Reg: 32080)</option>
+                    <option value="Sungrow">Sungrow (Reg: 5031)</option>
+                    <option value="Growatt">Growatt (Reg: 3)</option>
+                    <option value="Solis">Solis (Reg: 3004)</option>
+                    <option value="Deye">Deye (Reg: 526)</option>
+                    <option value="GoodWe">GoodWe (Reg: 35103)</option>
+                    <option value="SMA">SMA (Reg: 30775)</option>
+                    <option value="SolarEdge">SolarEdge (Reg: 40071)</option>
+                    <option value="Sofar">Sofar Solar (Reg: 512)</option>
+                    <option value="Kstar">Kstar (Reg: 1000)</option>
+                    <option value="Victron">Victron Energy (Reg: 840)</option>
+                    <option value="Custom">กำหนดเอง (Custom Register)</option>
                 </select>
             </div>
             
@@ -76,7 +84,7 @@
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwbsNnYIntCyX5Vi3dYyLIWIlVnftVOKVSr3Rk8ueLsngaoi1w6HI2z8p6rAEBz_7fFmQ/exec";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzsnw5nme7K5oea4mJc9eh9nAWNBZlgxfkaHS0MX13M_7P7yzVX4PHe0qMyeihLjGuYTA/exec";
         let currentDeviceMac = "", currentUser = "", refreshInterval = null, isBindMode = false;
 
         function showToast(title, message, type = 'success') {
@@ -129,7 +137,7 @@
             document.getElementById("loginSection").classList.add("hidden");
             document.getElementById("dashboardSection").classList.remove("hidden");
             fetchDeviceData();
-            refreshInterval = setInterval(fetchDeviceData, 3000); // รีเฟรชทุก 3 วินาที
+            refreshInterval = setInterval(fetchDeviceData, 3000);
         }
 
         function fetchDeviceData() {
