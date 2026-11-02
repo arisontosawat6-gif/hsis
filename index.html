@@ -1,138 +1,187 @@
-#include <ESP8266WiFi.h>
-#include <DNSServer.h>
-#include <ESP8266WebServer.h>
-#include <WiFiManager.h>
-#include <PubSubClient.h>
-#include <WiFiClientSecure.h>
-#include <ESP8266HTTPClient.h>
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSIS - Smart Stepper & Water Control Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center p-6">
 
-// --- MQTT Configuration (EMQX Cloud) ---
-const char* MQTT_SERVER = "c1166011.ala.asia-southeast1.emqxsl.com";
-int MQTT_PORT = 8883;
-const char* MQTT_USER = "Hsis";
-const char* MQTT_PASS = "Hsis1234";
+    <div class="max-w-2xl w-full space-y-6">
+        <!-- Header -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-6 text-center">
+            <h1 class="text-2xl font-bold text-indigo-400">HSIS Smart Dashboard</h1>
+            <p id="connection-status" class="text-sm text-yellow-400 mt-1">กำลังเชื่อมต่อระบบ...</p>
+        </div>
 
-// --- Supabase Configuration ---
-const char* SUPABASE_URL = "https://rcqurocnauuhnhcsaysjk.supabase.co/rest/v1/User";
-const char* SUPABASE_KEY = "QLglbl..."; // ใส่ Anon Key ของคุณ
+        <!-- Control Panel -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-6">
+            <h2 class="text-lg font-semibold text-slate-200 mb-4">แผงควบคุมอุปกรณ์</h2>
+            <div class="space-y-4">
+                <div class="flex gap-4">
+                    <button onclick="sendCommand('PUMP_ON')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 font-semibold py-3 px-4 rounded-xl transition">เปิดน้ำ (Pump ON)</button>
+                    <button onclick="sendCommand('PUMP_OFF')" class="flex-1 bg-rose-600 hover:bg-rose-500 font-semibold py-3 px-4 rounded-xl transition">ปิดน้ำ (Pump OFF)</button>
+                </div>
+                <button onclick="sendCommand('RUN_MOTOR')" class="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-3 px-4 rounded-xl transition">สั่งรันสเตปเปอร์มอเตอร์</button>
+            </div>
+        </div>
 
-// --- Pin Definitions ---
-const int STEP_PIN  = 5;   // D1
-const int DIR_PIN   = 4;   // D2
-const int ENA_PIN   = 0;   // D3
-const int RELAY_PIN = 13;  // D7
-const int LIMIT_FWD = 14;  // D5
-const int LIMIT_REV = 12;  // D6
+        <!-- Schedule Panel -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-6">
+            <h2 class="text-lg font-semibold text-slate-200 mb-4">ตั้งเวลาทำงานอัตโนมัติ (Schedules)</h2>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs text-slate-400">วัน (Days)</label>
+                    <input type="text" id="schedule-days" value="Everyday" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-slate-100 mt-1">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400">เวลา (Time)</label>
+                    <input type="time" id="schedule-time" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-slate-100 mt-1">
+                </div>
+                <button onclick="saveSchedule()" class="w-full bg-emerald-600 hover:bg-emerald-500 font-semibold py-3 px-4 rounded-xl transition mt-2">บันทึกตารางเวลา</button>
+            </div>
+        </div>
 
-WiFiClientSecure espClient;
-PubSubClient client(espClient);
+        <!-- History Logs Table -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-6">
+            <h2 class="text-lg font-semibold text-slate-200 mb-4">ประวัติการทำงานย้อนหลัง (Motor Logs)</h2>
+            <div class="overflow-x-auto max-h-60 overflow-y-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-900 text-slate-400 uppercase">
+                        <tr>
+                            <th class="p-3">เวลา</th>
+                            <th class="p-3">MAC Address</th>
+                            <th class="p-3">คำสั่ง (Action)</th>
+                            <th class="p-3">สถานะ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="log-table-body" class="divide-y divide-slate-700">
+                        <!-- โหลดข้อมูลอัตโนมัติ -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-const char* TOPIC_CONTROL = "hsis/control";
-const char* TOPIC_STATUS = "hsis/status";
+    <script>
+        const SUPABASE_URL = 'https://rcqurocnauuhnhcsaysjk.supabase.co';
+        const SUPABASE_ANON_KEY = 'QLglbl...';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-String deviceMac = "";
+        const mqttHost = "c1166011.ala.asia-southeast1.emqxsl.com";
+        const mqttPort = 8084; 
+        const clientId = "web_client_" + Math.random().toString(16).substring(2, 8);
+        const deviceMac = "AA:BB:CC:DD:EE:FF";
 
-void callback(char* topic, byte* payload, unsigned int length) {
-  String message = "";
-  for (unsigned int i = 0; i < length; i++) {
-    message += (char)payload[i];
-  }
-  
-  if (message == "PUMP_ON") {
-    digitalWrite(RELAY_PIN, HIGH);
-    client.publish(TOPIC_STATUS, "Pump is ON");
-  } else if (message == "PUMP_OFF") {
-    digitalWrite(RELAY_PIN, LOW);
-    client.publish(TOPIC_STATUS, "Pump is OFF");
-  } else if (message == "RUN_MOTOR") {
-    digitalWrite(ENA_PIN, LOW); // เปิดการทำงานมอเตอร์
-    digitalWrite(DIR_PIN, HIGH);
-    for(int i = 0; i < 200; i++) {
-      if (digitalRead(LIMIT_FWD) == LOW) {
-        client.publish(TOPIC_STATUS, "Motor stopped: Hit LIMIT_FWD");
-        break;
-      }
-      digitalWrite(STEP_PIN, HIGH);
-      delayMicroseconds(800);
-      digitalWrite(STEP_PIN, LOW);
-      delayMicroseconds(800);
-    }
-    digitalWrite(ENA_PIN, HIGH); // ปิดมอเตอร์ประหยัดไฟ
-    client.publish(TOPIC_STATUS, "Motor executed successfully");
-  }
-}
+        let client = new Paho.MQTT.Client(mqttHost, Number(mqttPort), clientId);
 
-void registerDeviceToSupabase() {
-  if (WiFi.status() == WL_CONNECTED) {
-    WiFiClientSecure clientHttp;
-    clientHttp.setInsecure();
-    HTTPClient http;
+        client.onConnectionLost = onConnectionLost;
+        client.onMessageArrived = onMessageArrived;
 
-    http.begin(clientHttp, SUPABASE_URL);
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("apikey", SUPABASE_KEY);
-    http.addHeader("Authorization", String("Bearer ") + SUPABASE_KEY);
-    http.addHeader("Prefer", "resolution=merge-duplicates");
+        client.connect({
+            useSSL: true,
+            userName: "Hsis",
+            password: "Hsis1234",
+            onSuccess: onConnect,
+            onFailure: onFailure
+        });
 
-    String payload = "{\"mac_adress\":\"" + deviceMac + "\",\"status\":\"online\"}";
-    
-    int httpResponseCode = http.POST(payload);
-    if (httpResponseCode > 0) {
-      Serial.println("Device registered to Supabase successfully.");
-    } else {
-      Serial.print("Error registering device: ");
-      Serial.println(httpResponseCode);
-    }
-    http.end();
-  }
-}
+        function onConnect() {
+            document.getElementById("connection-status").innerText = "เชื่อมต่อระบบสำเร็จ (Connected)";
+            document.getElementById("connection-status").className = "text-sm text-emerald-400 mt-1";
+            client.subscribe("hsis/status");
+            fetchLogs();
+        }
 
-void reconnect() {
-  while (!client.connected()) {
-    String clientId = "ESP8266-" + deviceMac;
-    espClient.setInsecure();
-    
-    if (client.connect(clientId.c_str(), MQTT_USER, MQTT_PASS)) {
-      client.subscribe(TOPIC_CONTROL);
-      client.publish(TOPIC_STATUS, "Device Online: MAC " + deviceMac);
-    } else {
-      delay(5000);
-    }
-  }
-}
+        function onFailure(responseObject) {
+            document.getElementById("connection-status").innerText = "MQTT ล้มเหลว: " + responseObject.errorMessage;
+            document.getElementById("connection-status").className = "text-sm text-rose-400 mt-1";
+        }
 
-void setup() {
-  Serial.begin(115200);
+        function onConnectionLost(responseObject) {
+            if (responseObject.errorCode !== 0) {
+                document.getElementById("connection-status").innerText = "ขาดการเชื่อมต่อ";
+                document.getElementById("connection-status").className = "text-sm text-rose-400 mt-1";
+            }
+        }
 
-  pinMode(STEP_PIN, OUTPUT);
-  pinMode(DIR_PIN, OUTPUT);
-  pinMode(ENA_PIN, OUTPUT);
-  pinMode(RELAY_PIN, OUTPUT);
-  pinMode(LIMIT_FWD, INPUT_PULLUP);
-  pinMode(LIMIT_REV, INPUT_PULLUP);
-  
-  digitalWrite(RELAY_PIN, LOW);
-  digitalWrite(ENA_PIN, HIGH);
+        async function sendCommand(payload) {
+            if (client.isConnected()) {
+                let message = new Paho.MQTT.Message(payload);
+                message.destinationName = "hsis/control";
+                client.send(message);
+            }
 
-  WiFiManager wifiManager;
-  if (!wifiManager.autoConnect("HSIS_Setup_Portal", "Hsis1234")) {
-    delay(3000);
-    ESP.restart();
-    delay(5000);
-  }
+            try {
+                const { error } = await _supabase
+                    .from('motor_logs')
+                    .insert([{ 
+                        mac_address: deviceMac, 
+                        action: payload, 
+                        status_message: 'Success' 
+                    }]);
+                
+                if (!error) {
+                    fetchLogs();
+                }
+            } catch (err) {
+                console.error("Database error:", err);
+            }
+        }
 
-  deviceMac = WiFi.macAddress();
-  Serial.println("Device MAC Address: " + deviceMac);
+        async function saveSchedule() {
+            const days = document.getElementById("schedule-days").value;
+            const time = document.getElementById("schedule-time").value;
 
-  registerDeviceToSupabase();
+            if (!time) {
+                alert("กรุณากรอกเวลาให้ครบถ้วน");
+                return;
+            }
 
-  client.setServer(MQTT_SERVER, MQTT_PORT);
-  client.setCallback(callback);
-}
+            try {
+                const { error } = await _supabase
+                    .from('schedules')
+                    .insert([{ Days: days, time: time, is_active: true }]);
+                
+                if (error) {
+                    alert("บันทึกไม่สำเร็จ: " + error.message);
+                } else {
+                    alert("บันทึกตารางเวลาสำเร็จ!");
+                }
+            } catch (err) {
+                console.error("Database error:", err);
+            }
+        }
 
-void loop() {
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
-}
+        async function fetchLogs() {
+            const { data, error } = await _supabase
+                .from('motor_logs')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            if (!error && data) {
+                const tbody = document.getElementById("log-table-body");
+                tbody.innerHTML = "";
+                data.forEach(log => {
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-700/50">
+                            <td class="p-3">${new Date(log.created_at).toLocaleTimeString()}</td>
+                            <td class="p-3 font-mono">${log.mac_address}</td>
+                            <td class="p-3 text-indigo-300 font-semibold">${log.action}</td>
+                            <td class="p-3 text-emerald-400">${log.status_message}</td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        function onMessageArrived(message) {
+            fetchLogs();
+        }
+    </script>
+</body>
+</html>
