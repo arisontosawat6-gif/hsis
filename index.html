@@ -1,181 +1,138 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cleanning - โซลาร์เซลล์แดชบอร์ด</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Prompt', sans-serif; background-color: #090d16; margin: 0; min-height: 100vh; overflow-x: hidden; }
-        .bg-company { position: fixed; inset: 0; background-image: url('https://github.com/arisontosawat6-gif/hsis/raw/main/logo.jpeg'); background-size: cover; background-position: center; filter: blur(25px) brightness(0.2); transform: scale(1.1); z-index: -2; }
-        @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.3); } 50% { box-shadow: 0 0 30px rgba(16, 185, 129, 0.6); } }
-        .glow-card { animation: pulseGlow 3s infinite ease-in-out; }
-    </style>
-</head>
-<body class="text-slate-100 flex items-center justify-center p-4 relative min-h-screen">
-    <div class="bg-company"></div>
-    <div class="absolute inset-0 bg-gradient-to-tr from-slate-950/90 via-slate-900/70 to-emerald-950/50 z-[-1]"></div>
+#include <ESP8266WiFi.h>
+#include <DNSServer.h>
+#include <ESP8266WebServer.h>
+#include <WiFiManager.h>
+#include <PubSubClient.h>
+#include <WiFiClientSecure.h>
+#include <ESP8266HTTPClient.h>
 
-    <!-- Toast Notification -->
-    <div id="toast" class="fixed top-5 right-5 z-50 transform translate-x-full transition-all duration-300 bg-slate-900/95 border border-emerald-500/40 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl">
-        <span id="toastIcon" class="text-emerald-400 text-lg">✅</span>
-        <div>
-            <h4 id="toastTitle" class="text-xs font-bold text-emerald-400">แจ้งเตือนระบบ</h4>
-            <p id="toastMessage" class="text-[11px] text-slate-300">ข้อความ...</p>
-        </div>
-    </div>
+// --- MQTT Configuration (EMQX Cloud) ---
+const char* MQTT_SERVER = "c1166011.ala.asia-southeast1.emqxsl.com";
+int MQTT_PORT = 8883;
+const char* MQTT_USER = "Hsis";
+const char* MQTT_PASS = "Hsis1234";
 
-    <!-- หน้า Login -->
-    <div id="loginSection" class="max-w-sm w-full bg-slate-900/85 backdrop-blur-2xl border border-emerald-500/20 shadow-2xl rounded-3xl p-6">
-        <div class="text-center mb-6">
-            <h2 class="text-xl font-bold text-white">ระบบควบคุมการล้างแผง</h2>
-        </div>
-        <div class="space-y-4">
-            <input type="text" id="username" placeholder="Username" class="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/80 text-white text-sm">
-            <input type="password" id="password" placeholder="Password" class="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-800/80 text-white text-sm">
-            
-            <div id="macContainer" class="hidden space-y-3">
-                <input type="text" id="macAddress" placeholder="MAC Address เช่น A1B2C3D4E5F6" class="w-full px-4 py-3 rounded-xl border border-emerald-500/50 bg-slate-800/80 text-white text-sm">
-                <select id="regInverterType" class="w-full px-4 py-3 rounded-xl border border-emerald-500/50 bg-slate-800/80 text-white text-sm">
-                    <option value="Huawei">Huawei (Reg: 32080)</option>
-                    <option value="Sungrow">Sungrow (Reg: 5031)</option>
-                    <option value="Growatt">Growatt (Reg: 3)</option>
-                    <option value="Solis">Solis (Reg: 3004)</option>
-                    <option value="Deye">Deye (Reg: 526)</option>
-                    <option value="GoodWe">GoodWe (Reg: 35103)</option>
-                    <option value="SMA">SMA (Reg: 30775)</option>
-                    <option value="SolarEdge">SolarEdge (Reg: 40071)</option>
-                    <option value="Sofar">Sofar Solar (Reg: 512)</option>
-                    <option value="Kstar">Kstar (Reg: 1000)</option>
-                    <option value="Victron">Victron Energy (Reg: 840)</option>
-                    <option value="Custom">กำหนดเอง (Custom Register)</option>
-                </select>
-            </div>
-            
-            <button onclick="handleLogin()" id="btnLogin" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer">เข้าสู่ระบบ</button>
-            <button onclick="toggleBindMode()" id="btnToggleBind" class="w-full bg-slate-800 text-slate-300 py-2.5 rounded-xl text-xs transition cursor-pointer">⚙️ ผูกอุปกรณ์ใหม่</button>
-        </div>
-    </div>
+// --- Supabase Configuration ---
+const char* SUPABASE_URL = "https://rcqurocnauuhnhcsaysjk.supabase.co/rest/v1/User";
+const char* SUPABASE_KEY = "QLglbl..."; // ใส่ Anon Key ของคุณ
 
-    <!-- แดชบอร์ดหลัก -->
-    <div id="dashboardSection" class="max-w-md w-full bg-slate-900/85 backdrop-blur-2xl border border-emerald-500/20 shadow-2xl rounded-3xl p-6 relative hidden">
-        <div class="flex items-center justify-between mb-4">
-            <div>
-                <h1 class="text-base font-bold text-white">แดชบอร์ดควบคุม</h1>
-                <p class="text-[10px] text-emerald-400">ID: <span id="dispDeviceId">-</span></p>
-                <div class="flex items-center gap-1.5 mt-1">
-                    <span id="onlineDot" class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-                    <span id="onlineStatusText" class="text-[9px] text-rose-400 font-medium">ออฟไลน์</span>
-                </div>
-            </div>
-            <button onclick="logout()" class="text-xs text-rose-400 bg-rose-500/10 px-3 py-1.5 rounded-xl cursor-pointer">ออก</button>
-        </div>
+// --- Pin Definitions ---
+const int STEP_PIN  = 5;   // D1
+const int DIR_PIN   = 4;   // D2
+const int ENA_PIN   = 0;   // D3
+const int RELAY_PIN = 13;  // D7
+const int LIMIT_FWD = 14;  // D5
+const int LIMIT_REV = 12;  // D6
 
-        <div class="bg-emerald-700/90 rounded-2xl p-5 text-white mb-4 glow-card">
-            <p class="text-emerald-100 text-xs">กำลังไฟฟ้าโซลาร์เซลล์</p>
-            <h2 id="dispPower" class="text-4xl font-extrabold mt-1">0.0 W</h2>
-        </div>
+WiFiClientSecure espClient;
+PubSubClient client(espClient);
 
-        <div class="grid grid-cols-2 gap-3">
-            <button onclick="sendCommand('CLEAN')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs cursor-pointer">⚡ สั่งล้างแผง</button>
-            <button onclick="sendCommand('SPRAY')" class="bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 rounded-xl text-xs cursor-pointer">💧 ฉีดน้ำ</button>
-        </div>
-    </div>
+const char* TOPIC_CONTROL = "hsis/control";
+const char* TOPIC_STATUS = "hsis/status";
 
-    <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzsnw5nme7K5oea4mJc9eh9nAWNBZlgxfkaHS0MX13M_7P7yzVX4PHe0qMyeihLjGuYTA/exec";
-        let currentDeviceMac = "", currentUser = "", refreshInterval = null, isBindMode = false;
+String deviceMac = "";
 
-        function showToast(title, message, type = 'success') {
-            let toast = document.getElementById("toast");
-            document.getElementById("toastTitle").innerText = title;
-            document.getElementById("toastMessage").innerText = message;
-            toast.className = "fixed top-5 right-5 z-50 transform translate-x-0 transition-all duration-300 bg-slate-900/95 border border-emerald-500/40 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl";
-            setTimeout(() => {
-                toast.className = "fixed top-5 right-5 z-50 transform translate-x-full transition-all duration-300 bg-slate-900/95 border border-emerald-500/40 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl";
-            }, 3000);
-        }
+void callback(char* topic, byte* payload, unsigned int length) {
+  String message = "";
+  for (unsigned int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  
+  if (message == "PUMP_ON") {
+    digitalWrite(RELAY_PIN, HIGH);
+    client.publish(TOPIC_STATUS, "Pump is ON");
+  } else if (message == "PUMP_OFF") {
+    digitalWrite(RELAY_PIN, LOW);
+    client.publish(TOPIC_STATUS, "Pump is OFF");
+  } else if (message == "RUN_MOTOR") {
+    digitalWrite(ENA_PIN, LOW); // เปิดการทำงานมอเตอร์
+    digitalWrite(DIR_PIN, HIGH);
+    for(int i = 0; i < 200; i++) {
+      if (digitalRead(LIMIT_FWD) == LOW) {
+        client.publish(TOPIC_STATUS, "Motor stopped: Hit LIMIT_FWD");
+        break;
+      }
+      digitalWrite(STEP_PIN, HIGH);
+      delayMicroseconds(800);
+      digitalWrite(STEP_PIN, LOW);
+      delayMicroseconds(800);
+    }
+    digitalWrite(ENA_PIN, HIGH); // ปิดมอเตอร์ประหยัดไฟ
+    client.publish(TOPIC_STATUS, "Motor executed successfully");
+  }
+}
 
-        function toggleBindMode() {
-            isBindMode = !isBindMode;
-            document.getElementById("macContainer").classList.toggle("hidden", !isBindMode);
-            document.getElementById("btnLogin").innerText = isBindMode ? "บันทึกการผูกบอร์ด" : "เข้าสู่ระบบ";
-            document.getElementById("btnLogin").setAttribute("onclick", isBindMode ? "handleBind()" : "handleLogin()");
-        }
+void registerDeviceToSupabase() {
+  if (WiFi.status() == WL_CONNECTED) {
+    WiFiClientSecure clientHttp;
+    clientHttp.setInsecure();
+    HTTPClient http;
 
-        function handleLogin() {
-            let user = document.getElementById("username").value.trim();
-            let pass = document.getElementById("password").value.trim();
-            if(!user || !pass) { showToast("แจ้งเตือน", "กรุณากรอกข้อมูลให้ครบ!", "error"); return; }
-            fetch(`${SCRIPT_URL}?action=login&user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}`)
-            .then(res => res.text())
-            .then(res => {
-                if(res === "INVALID") showToast("ผิดพลาด", "รหัสผ่านไม่ถูกต้อง", "error");
-                else if(res === "NOT_BOUND") showToast("แจ้งเตือน", "ยังไม่ผูกอุปกรณ์", "error");
-                else { currentDeviceMac = res; enterDashboard(); }
-            });
-        }
+    http.begin(clientHttp, SUPABASE_URL);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("apikey", SUPABASE_KEY);
+    http.addHeader("Authorization", String("Bearer ") + SUPABASE_KEY);
+    http.addHeader("Prefer", "resolution=merge-duplicates");
 
-        function handleBind() {
-            let user = document.getElementById("username").value.trim();
-            let pass = document.getElementById("password").value.trim();
-            let mac = document.getElementById("macAddress").value.trim();
-            let inverter = document.getElementById("regInverterType").value;
-            fetch(`${SCRIPT_URL}?action=bindDevice&user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}&mac=${encodeURIComponent(mac)}&inverter=${encodeURIComponent(inverter)}`)
-            .then(res => res.text())
-            .then(res => {
-                if(res === "UPDATED" || res === "CREATED") {
-                    currentDeviceMac = mac;
-                    enterDashboard();
-                }
-            });
-        }
+    String payload = "{\"mac_adress\":\"" + deviceMac + "\",\"status\":\"online\"}";
+    
+    int httpResponseCode = http.POST(payload);
+    if (httpResponseCode > 0) {
+      Serial.println("Device registered to Supabase successfully.");
+    } else {
+      Serial.print("Error registering device: ");
+      Serial.println(httpResponseCode);
+    }
+    http.end();
+  }
+}
 
-        function enterDashboard() {
-            document.getElementById("dispDeviceId").innerText = currentDeviceMac;
-            document.getElementById("loginSection").classList.add("hidden");
-            document.getElementById("dashboardSection").classList.remove("hidden");
-            fetchDeviceData();
-            refreshInterval = setInterval(fetchDeviceData, 3000);
-        }
+void reconnect() {
+  while (!client.connected()) {
+    String clientId = "ESP8266-" + deviceMac;
+    espClient.setInsecure();
+    
+    if (client.connect(clientId.c_str(), MQTT_USER, MQTT_PASS)) {
+      client.subscribe(TOPIC_CONTROL);
+      client.publish(TOPIC_STATUS, "Device Online: MAC " + deviceMac);
+    } else {
+      delay(5000);
+    }
+  }
+}
 
-        function fetchDeviceData() {
-            if(!currentDeviceMac) return;
-            fetch(`${SCRIPT_URL}?action=getData&deviceId=${encodeURIComponent(currentDeviceMac)}`)
-            .then(res => res.json())
-            .then(data => {
-                if(data && data.power !== undefined) {
-                    document.getElementById("dispPower").innerText = data.power + " W";
-                    let dot = document.getElementById("onlineDot"), text = document.getElementById("onlineStatusText");
-                    if(data.online) {
-                        dot.className = "w-2 h-2 rounded-full bg-emerald-500 shadow-md";
-                        text.className = "text-[9px] text-emerald-400 font-medium";
-                        text.innerText = "ออนไลน์";
-                    } else {
-                        dot.className = "w-2 h-2 rounded-full bg-rose-500 animate-pulse";
-                        text.className = "text-[9px] text-rose-400 font-medium";
-                        text.innerText = "ออฟไลน์";
-                    }
-                }
-            });
-        }
+void setup() {
+  Serial.begin(115200);
 
-        function sendCommand(cmd) {
-            if(!currentDeviceMac) return;
-            fetch(`${SCRIPT_URL}?action=setCommand&deviceId=${encodeURIComponent(currentDeviceMac)}&cmd=${cmd}`)
-            .then(res => res.text())
-            .then(res => {
-                if(res === "CMD_SET") showToast("สำเร็จ", "ส่งคำสั่ง '" + cmd + "' เรียบร้อย");
-            });
-        }
+  pinMode(STEP_PIN, OUTPUT);
+  pinMode(DIR_PIN, OUTPUT);
+  pinMode(ENA_PIN, OUTPUT);
+  pinMode(RELAY_PIN, OUTPUT);
+  pinMode(LIMIT_FWD, INPUT_PULLUP);
+  pinMode(LIMIT_REV, INPUT_PULLUP);
+  
+  digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(ENA_PIN, HIGH);
 
-        function logout() {
-            clearInterval(refreshInterval);
-            currentDeviceMac = "";
-            document.getElementById("dashboardSection").classList.add("hidden");
-            document.getElementById("loginSection").classList.remove("hidden");
-        }
-    </script>
-</body>
-</html>
+  WiFiManager wifiManager;
+  if (!wifiManager.autoConnect("HSIS_Setup_Portal", "Hsis1234")) {
+    delay(3000);
+    ESP.restart();
+    delay(5000);
+  }
+
+  deviceMac = WiFi.macAddress();
+  Serial.println("Device MAC Address: " + deviceMac);
+
+  registerDeviceToSupabase();
+
+  client.setServer(MQTT_SERVER, MQTT_PORT);
+  client.setCallback(callback);
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+}
