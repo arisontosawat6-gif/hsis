@@ -45,11 +45,14 @@
         <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-6">
             <h2 class="text-lg font-semibold text-slate-200 mb-4">แผงควบคุมอุปกรณ์</h2>
             <div class="space-y-4">
-                <div class="flex gap-4">
-                    <button onclick="sendCommand('PUMP_ON')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 font-semibold py-3 px-4 rounded-xl transition">เปิดน้ำ (Pump ON)</button>
-                    <button onclick="sendCommand('PUMP_OFF')" class="flex-1 bg-rose-600 hover:bg-rose-500 font-semibold py-3 px-4 rounded-xl transition">ปิดน้ำ (Pump OFF)</button>
-                </div>
-                <button onclick="sendCommand('RUN_MOTOR')" class="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-3 px-4 rounded-xl transition">สั่งรันสเตปเปอร์มอเตอร์</button>
+                <!-- 1. ปุ่มเปิด/ปิดน้ำแบบสลับสถานะ -->
+                <button id="pump-toggle-btn" onclick="togglePump()" class="w-full bg-emerald-600 hover:bg-emerald-500 font-semibold py-3 px-4 rounded-xl transition">เปิดน้ำ</button>
+                
+                <!-- 2. ปุ่มสั่งปัดอย่างเดียว -->
+                <button onclick="sendCommand('RUN_MOTOR')" class="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-3 px-4 rounded-xl transition">เริ่มปัด</button>
+                
+                <!-- 3. ปุ่มทำงานอัตโนมัติ (เปิดน้ำ 30 วิ และปัด 3 รอบ) -->
+                <button onclick="sendCommand('AUTO_SEQUENCE')" class="w-full bg-amber-600 hover:bg-amber-500 font-semibold py-3 px-4 rounded-xl transition">เปิดน้ำ 30 วิ และปัด 3 รอบ</button>
             </div>
         </div>
 
@@ -58,8 +61,19 @@
             <h2 class="text-lg font-semibold text-slate-200 mb-4">ตั้งเวลาทำงานอัตโนมัติ (Schedules)</h2>
             <div class="space-y-3">
                 <div>
-                    <label class="text-xs text-slate-400">วัน (Days)</label>
-                    <input type="text" id="schedule-days" value="Everyday" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-slate-100 mt-1">
+                    <label class="text-xs text-slate-400">เลือกวัน (Days)</label>
+                    <select id="schedule-days" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-slate-100 mt-1">
+                        <option value="Everyday">ทุกวัน (Everyday)</option>
+                        <option value="Monday">วันจันทร์ (Monday)</option>
+                        <option value="Tuesday">วันอังคาร (Tuesday)</option>
+                        <option value="Wednesday">วันพุธ (Wednesday)</option>
+                        <option value="Thursday">วันพฤหัสบดี (Thursday)</option>
+                        <option value="Friday">วันศุกร์ (Friday)</option>
+                        <option value="Saturday">วันเสาร์ (Saturday)</option>
+                        <option value="Sunday">วันอาทิตย์ (Sunday)</option>
+                        <option value="Weekdays">วันจันทร์ - ศุกร์ (Weekdays)</option>
+                        <option value="Weekend">เสาร์ - อาทิตย์ (Weekend)</option>
+                    </select>
                 </div>
                 <div>
                     <label class="text-xs text-slate-400">เวลา (Time)</label>
@@ -91,7 +105,6 @@
     </div>
 
     <script>
-        // ใส่ URL ที่ถูกต้องตามโปรเจกต์ Supabase ของคุณ
         const SUPABASE_URL = 'https://rcqurocnauhnhcsaysjk.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_j5DsTKNyy8ZCuf31FgdG8w_iso1sHqh';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -102,6 +115,7 @@
         
         let currentMac = "";
         let client = null;
+        let isPumpOn = false; // สถานะปั๊มน้ำปัจจุบัน
 
         window.addEventListener('DOMContentLoaded', () => {
             const savedMac = localStorage.getItem("hsis_logged_mac");
@@ -196,6 +210,22 @@
             if (responseObject.errorCode !== 0) {
                 document.getElementById("connection-status").innerText = "ขาดการเชื่อมต่อ MQTT";
                 document.getElementById("connection-status").className = "text-xs text-rose-400 mt-1";
+            }
+        }
+
+        // ฟังก์ชันสลับเปิด/ปิดน้ำ
+        function togglePump() {
+            const btn = document.getElementById("pump-toggle-btn");
+            if (!isPumpOn) {
+                sendCommand("PUMP_ON");
+                isPumpOn = true;
+                btn.innerText = "ปิดน้ำ";
+                btn.className = "w-full bg-rose-600 hover:bg-rose-500 font-semibold py-3 px-4 rounded-xl transition";
+            } else {
+                sendCommand("PUMP_OFF");
+                isPumpOn = false;
+                btn.innerText = "เปิดน้ำ";
+                btn.className = "w-full bg-emerald-600 hover:bg-emerald-500 font-semibold py-3 px-4 rounded-xl transition";
             }
         }
 
