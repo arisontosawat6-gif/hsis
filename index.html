@@ -118,7 +118,7 @@
         let currentMac = "";
         let client = null;
         let isPumpOn = false;
-        let currentLang = 'th'; // ค่าเริ่มต้นภาษาไทย
+        let currentLang = 'th';
 
         const translations = {
             th: {
@@ -379,6 +379,7 @@
             const { data, error } = await _supabase
                 .from('motor_logs')
                 .select('*')
+                .eq('mac_address', currentMac) // กรองเฉพาะประวัติของ MAC Address ตัวเอง
                 .order('created_at', { ascending: false })
                 .limit(10);
 
