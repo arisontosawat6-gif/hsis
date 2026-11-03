@@ -45,14 +45,9 @@
         <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-6">
             <h2 class="text-lg font-semibold text-slate-200 mb-4">แผงควบคุมอุปกรณ์</h2>
             <div class="space-y-4">
-                <!-- 1. ปุ่มเปิด/ปิดน้ำแบบสลับสถานะ -->
                 <button id="pump-toggle-btn" onclick="togglePump()" class="w-full bg-emerald-600 hover:bg-emerald-500 font-semibold py-3 px-4 rounded-xl transition">เปิดน้ำ</button>
-                
-                <!-- 2. ปุ่มสั่งปัดอย่างเดียว -->
-                <button onclick="sendCommand('RUN_MOTOR')" class="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-3 px-4 rounded-xl transition">เริ่มปัด</button>
-                
-                <!-- 3. ปุ่มทำงานอัตโนมัติ (เปิดน้ำ 30 วิ และปัด 3 รอบ) -->
-                <button onclick="sendCommand('AUTO_SEQUENCE')" class="w-full bg-amber-600 hover:bg-amber-500 font-semibold py-3 px-4 rounded-xl transition">เปิดน้ำ 30 วิ และปัด 3 รอบ</button>
+                <button onclick="sendCommand('RUN_MOTOR', 'เริ่มปัด')" class="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-3 px-4 rounded-xl transition">เริ่มปัด</button>
+                <button onclick="sendCommand('AUTO_SEQUENCE', 'เปิดน้ำ 30 วิ และปัด 3 รอบ')" class="w-full bg-amber-600 hover:bg-amber-500 font-semibold py-3 px-4 rounded-xl transition">เปิดน้ำ 30 วิ และปัด 3 รอบ</button>
             </div>
         </div>
 
@@ -115,7 +110,7 @@
         
         let currentMac = "";
         let client = null;
-        let isPumpOn = false; // สถานะปั๊มน้ำปัจจุบัน
+        let isPumpOn = false;
 
         window.addEventListener('DOMContentLoaded', () => {
             const savedMac = localStorage.getItem("hsis_logged_mac");
@@ -213,23 +208,22 @@
             }
         }
 
-        // ฟังก์ชันสลับเปิด/ปิดน้ำ
         function togglePump() {
             const btn = document.getElementById("pump-toggle-btn");
             if (!isPumpOn) {
-                sendCommand("PUMP_ON");
+                sendCommand("PUMP_ON", "เปิดน้ำ");
                 isPumpOn = true;
                 btn.innerText = "ปิดน้ำ";
                 btn.className = "w-full bg-rose-600 hover:bg-rose-500 font-semibold py-3 px-4 rounded-xl transition";
             } else {
-                sendCommand("PUMP_OFF");
+                sendCommand("PUMP_OFF", "ปิดน้ำ");
                 isPumpOn = false;
                 btn.innerText = "เปิดน้ำ";
                 btn.className = "w-full bg-emerald-600 hover:bg-emerald-500 font-semibold py-3 px-4 rounded-xl transition";
             }
         }
 
-        async function sendCommand(payload) {
+        async function sendCommand(payload, actionText) {
             if (client && client.isConnected()) {
                 let message = new Paho.MQTT.Message(payload);
                 message.destinationName = "hsis/control/" + currentMac;
@@ -241,7 +235,7 @@
                     .from('motor_logs')
                     .insert([{ 
                         mac_address: currentMac, 
-                        action: payload, 
+                        action: actionText, // บันทึกข้อความภาษาไทยที่อ่านง่ายลงฐานข้อมูล
                         status_message: 'Success' 
                     }]);
                 fetchLogs();
