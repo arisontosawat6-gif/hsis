@@ -1,425 +1,169 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HSIS - Login & Smart Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6 relative selection:bg-indigo-500 selection:text-white">
+#include <ESP8266WiFi.h>
+#include <DNSServer.h>
+#include <ESP8266WebServer.h>
+#include <WiFiManager.h>
+#include <PubSubClient.h>
+#include <WiFiClientSecure.h>
+#include <ESP8266HTTPClient.h>
 
-    <!-- ปุ่มเปลี่ยนภาษา มุมขวาบน -->
-    <div class="absolute top-6 right-6">
-        <button onclick="toggleLanguage()" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-lg">
-            <span>🌐</span> <span id="lang-label">ENG</span>
-        </button>
-    </div>
+// --- MQTT Configuration (EMQX Cloud SSL Port 8883) ---
+const char* MQTT_SERVER = "c1166011.ala.asia-southeast1.emqxsl.com";
+int MQTT_PORT = 8883;
+const char* MQTT_USER = "Hsis";
+const char* MQTT_PASS = "Hsis1234";
 
-    <!-- 1. ส่วนหน้า Login -->
-    <div id="login-container" class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-8 hidden">
-        <h1 id="t-login-title" class="text-2xl font-bold text-center mb-2 text-indigo-400">HSIS System Login</h1>
-        <p id="t-login-sub" class="text-center text-xs text-slate-400 mb-6">กรอก Username และ Password เพื่อเข้าสู่ระบบ</p>
-        
-        <div class="space-y-4">
-            <div>
-                <label class="text-xs text-slate-400 font-medium">Username</label>
-                <input type="text" id="login-user" placeholder="ชื่อผู้ใช้งาน" class="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3 text-sm text-slate-100 mt-1 focus:outline-none focus:border-indigo-500 transition">
-            </div>
-            <div>
-                <label class="text-xs text-slate-400 font-medium">Password</label>
-                <input type="password" id="login-pass" placeholder="รหัสผ่าน" class="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3 text-sm text-slate-100 mt-1 focus:outline-none focus:border-indigo-500 transition">
-            </div>
-            <button id="t-login-btn" onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-3 px-4 rounded-2xl transition shadow-lg shadow-indigo-600/20">เข้าสู่ระบบ</button>
-            <p id="login-error" class="text-center text-xs text-rose-400 mt-2 font-medium"></p>
-        </div>
-    </div>
+// --- Supabase Configuration ---
+const char* SUPABASE_URL = "https://rcqurocnauuhnhcsaysjk.supabase.co/rest/v1/User";
+const char* SUPABASE_KEY = "sb_publishable_j5DsTKNyy8ZCuf31FgdG8w_iso1sHqh"; 
 
-    <!-- 2. ส่วนหน้า Dashboard -->
-    <div id="dashboard-container" class="max-w-2xl w-full space-y-6 hidden">
-        <!-- Header -->
-        <div class="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-6 flex justify-between items-center">
-            <div>
-                <h1 class="text-xl font-bold text-indigo-400">HSIS Smart Dashboard</h1>
-                <div class="flex items-center gap-2 mt-1">
-                    <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-pulse"></span>
-                    <p id="connection-status" class="text-xs text-slate-400">กำลังเชื่อมต่อ MQTT...</p>
-                </div>
-                <p id="device-mac-label" class="text-xs text-slate-500 mt-1 font-mono">Device MAC: -</p>
-            </div>
-            <button id="t-logout-btn" onclick="handleLogout()" class="bg-slate-800 hover:bg-rose-600/20 hover:text-rose-400 hover:border-rose-500/50 border border-slate-700 text-slate-300 text-xs font-semibold py-2 px-4 rounded-2xl transition">ออกจากระบบ</button>
-        </div>
+// --- Pin Definitions ---
+const int STEP_PIN  = 5;   // D1
+const int DIR_PIN   = 4;   // D2
+const int ENA_PIN   = 0;   // D3
+const int RELAY_PIN = 13;  // D7
+const int LIMIT_FWD = 14;  // D5
+const int LIMIT_REV = 12;  // D6
 
-        <!-- Control Panel -->
-        <div class="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-6">
-            <h2 id="t-control-title" class="text-lg font-semibold text-slate-200 mb-4">แผงควบคุมอุปกรณ์</h2>
-            <div class="space-y-3">
-                <button id="pump-toggle-btn" onclick="togglePump()" class="w-full bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 font-semibold py-3.5 px-4 rounded-2xl transition">เปิดน้ำ</button>
-                <button id="t-btn-sweep" onclick="sendCommand('RUN_MOTOR', 'เริ่มปัด')" class="w-full bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-400 font-semibold py-3.5 px-4 rounded-2xl transition">เริ่มปัด</button>
-                <button id="t-btn-auto" onclick="sendCommand('AUTO_SEQUENCE', 'เริ่มทำงานอัตโนมัติ')" class="w-full bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-400 font-semibold py-3.5 px-4 rounded-2xl transition">เริ่มทำงานอัตโนมัติ</button>
-            </div>
-        </div>
+WiFiClientSecure espClient;
+PubSubClient client(espClient);
 
-        <!-- Schedule Panel -->
-        <div class="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-6">
-            <h2 id="t-schedule-title" class="text-lg font-semibold text-slate-200 mb-4">ตั้งเวลาทำงานอัตโนมัติ (Schedules)</h2>
-            <div class="space-y-3">
-                <div>
-                    <label id="t-label-days" class="text-xs text-slate-400 font-medium">เลือกวัน (Days)</label>
-                    <select id="schedule-days" class="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3 text-sm text-slate-100 mt-1 focus:outline-none focus:border-indigo-500 transition">
-                        <option value="Everyday">ทุกวัน (Everyday)</option>
-                        <option value="Monday">วันจันทร์ (Monday)</option>
-                        <option value="Tuesday">วันอังคาร (Tuesday)</option>
-                        <option value="Wednesday">วันพุธ (Wednesday)</option>
-                        <option value="Thursday">วันพฤหัสบดี (Thursday)</option>
-                        <option value="Friday">วันศุกร์ (Friday)</option>
-                        <option value="Saturday">วันเสาร์ (Saturday)</option>
-                        <option value="Sunday">วันอาทิตย์ (Sunday)</option>
-                        <option value="Weekdays">วันจันทร์ - ศุกร์ (Weekdays)</option>
-                        <option value="Weekend">เสาร์ - อาทิตย์ (Weekend)</option>
-                    </select>
-                </div>
-                <div>
-                    <label id="t-label-time" class="text-xs text-slate-400 font-medium">เวลา (Time)</label>
-                    <input type="time" id="schedule-time" class="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3 text-sm text-slate-100 mt-1 focus:outline-none focus:border-indigo-500 transition">
-                </div>
-                <button id="t-save-schedule" onclick="saveSchedule()" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold py-3 px-4 rounded-2xl transition mt-2 shadow-lg">บันทึกตารางเวลา</button>
-            </div>
-        </div>
+const char* TOPIC_STATUS = "hsis/status";
 
-        <!-- History Logs Table -->
-        <div class="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-6">
-            <h2 id="t-logs-title" class="text-lg font-semibold text-slate-200 mb-4">ประวัติการทำงานย้อนหลัง (Motor Logs)</h2>
-            <div class="overflow-x-auto max-h-60 overflow-y-auto rounded-2xl border border-slate-800">
-                <table class="w-full text-left text-xs text-slate-300">
-                    <thead class="bg-slate-950 text-slate-400 uppercase tracking-wider sticky top-0">
-                        <tr>
-                            <th id="t-th-time" class="p-3.5">เวลา</th>
-                            <th id="t-th-mac" class="p-3.5">MAC Address</th>
-                            <th id="t-th-action" class="p-3.5">คำสั่ง (Action)</th>
-                            <th id="t-th-status" class="p-3.5">สถานะ</th>
-                        </tr>
-                    </thead>
-                    <tbody id="log-table-body" class="divide-y divide-slate-800/60">
-                        <!-- โหลดข้อมูลอัตโนมัติ -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+String deviceMac = "";
 
-    <!-- Toast Notification -->
-    <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 border border-slate-800 text-slate-200 px-4 py-3 rounded-2xl shadow-2xl transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-2 z-50 text-xs font-medium">
-        <span id="toast-icon">✨</span> <span id="toast-msg">แจ้งเตือนระบบ</span>
-    </div>
+void runSweeper(int rounds) {
+  digitalWrite(ENA_PIN, LOW); 
+  digitalWrite(DIR_PIN, HIGH);
+  
+  for (int r = 0; r < rounds; r++) {
+    for (int i = 0; i < 200; i++) {
+      if (digitalRead(LIMIT_FWD) == LOW) {
+        Serial.println("Motor stopped: Hit LIMIT_FWD");
+        break;
+      }
+      digitalWrite(STEP_PIN, HIGH);
+      delayMicroseconds(800);
+      digitalWrite(STEP_PIN, LOW);
+      delayMicroseconds(800);
+    }
+    delay(200); 
+  }
+  
+  digitalWrite(ENA_PIN, HIGH); 
+}
 
-    <script>
-        const SUPABASE_URL = 'https://rcqurocnauhnhcsaysjk.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_j5DsTKNyy8ZCuf31FgdG8w_iso1sHqh';
-        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+void callback(char* topic, byte* payload, unsigned int length) {
+  String message = "";
+  for (unsigned int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  
+  Serial.println("Received Command: " + message);
 
-        const mqttHost = "c1166011.ala.asia-southeast1.emqxsl.com";
-        const mqttPort = 8084; 
-        const clientId = "web_client_" + Math.random().toString(16).substring(2, 8);
-        
-        let currentMac = "";
-        let client = null;
-        let isPumpOn = false;
-        let currentLang = 'th';
+  if (message == "PUMP_ON") {
+    digitalWrite(RELAY_PIN, HIGH);
+    client.publish(TOPIC_STATUS, "Pump is ON");
+  } 
+  else if (message == "PUMP_OFF") {
+    digitalWrite(RELAY_PIN, LOW);
+    client.publish(TOPIC_STATUS, "Pump is OFF");
+  } 
+  else if (message == "RUN_MOTOR") {
+    runSweeper(1); 
+    client.publish(TOPIC_STATUS, "Motor executed successfully");
+  }
+  else if (message == "AUTO_SEQUENCE") {
+    client.publish(TOPIC_STATUS, "Auto Mode Started: Pump ON for 30s & Sweeping 3 rounds");
+    
+    digitalWrite(RELAY_PIN, HIGH);
+    delay(30000); 
+    digitalWrite(RELAY_PIN, LOW);
+    
+    runSweeper(3); 
+    
+    client.publish(TOPIC_STATUS, "Auto Mode Completed Successfully");
+  }
+}
 
-        const translations = {
-            th: {
-                langBtn: "ENG",
-                loginTitle: "HSIS System Login",
-                loginSub: "กรอก Username และ Password เพื่อเข้าสู่ระบบ",
-                userPlaceholder: "ชื่อผู้ใช้งาน",
-                passPlaceholder: "รหัสผ่าน",
-                loginBtn: "เข้าสู่ระบบ",
-                logoutBtn: "ออกจากระบบ",
-                controlTitle: "แผงควบคุมอุปกรณ์",
-                pumpOn: "เปิดน้ำ",
-                pumpOff: "ปิดน้ำ",
-                btnSweep: "เริ่มปัด",
-                btnAuto: "เริ่มทำงานอัตโนมัติ",
-                scheduleTitle: "ตั้งเวลาทำงานอัตโนมัติ (Schedules)",
-                labelDays: "เลือกวัน (Days)",
-                labelTime: "เวลา (Time)",
-                saveSchedule: "บันทึกตารางเวลา",
-                logsTitle: "ประวัติการทำงานย้อนหลัง (Motor Logs)",
-                thTime: "เวลา",
-                thMac: "MAC Address",
-                thAction: "คำสั่ง (Action)",
-                thStatus: "สถานะ",
-                errEmpty: "กรุณากรอก Username และ Password",
-                errNotFound: "ไม่พบ Username นี้ในระบบ",
-                errWrongPass: "รหัสผ่านไม่ถูกต้อง",
-                mqttConn: "เชื่อมต่อ MQTT สำเร็จ",
-                mqttFail: "MQTT ล้มเหลว: ",
-                mqttLost: "ขาดการเชื่อมต่อ MQTT"
-            },
-            en: {
-                langBtn: "TH",
-                loginTitle: "HSIS System Login",
-                loginSub: "Enter Username and Password to login",
-                userPlaceholder: "Username",
-                passPlaceholder: "Password",
-                loginBtn: "Login",
-                logoutBtn: "Logout",
-                controlTitle: "Device Control Panel",
-                pumpOn: "Turn Pump ON",
-                pumpOff: "Turn Pump OFF",
-                btnSweep: "Start Sweep",
-                btnAuto: "Start Auto Mode",
-                scheduleTitle: "Automation Schedules",
-                labelDays: "Select Days",
-                labelTime: "Time",
-                saveSchedule: "Save Schedule",
-                logsTitle: "Motor Logs History",
-                thTime: "Time",
-                thMac: "MAC Address",
-                thAction: "Action",
-                thStatus: "Status",
-                errEmpty: "Please enter Username and Password",
-                errNotFound: "Username not found",
-                errWrongPass: "Incorrect password",
-                mqttConn: "MQTT Connected",
-                mqttFail: "MQTT Failed: ",
-                mqttLost: "MQTT Connection Lost"
-            }
-        };
+void registerDeviceToSupabase() {
+  if (WiFi.status() == WL_CONNECTED) {
+    WiFiClientSecure clientHttp;
+    clientHttp.setInsecure();
+    HTTPClient http;
 
-        function showToast(msg, icon = "✨") {
-            const toast = document.getElementById("toast");
-            document.getElementById("toast-msg").innerText = msg;
-            document.getElementById("toast-icon").innerText = icon;
-            toast.classList.remove("translate-y-20", "opacity-0");
-            setTimeout(() => {
-                toast.classList.add("translate-y-20", "opacity-0");
-            }, 3000);
-        }
+    http.begin(clientHttp, SUPABASE_URL);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("apikey", SUPABASE_KEY);
+    http.addHeader("Authorization", String("Bearer ") + SUPABASE_KEY);
+    http.addHeader("Prefer", "resolution=merge-duplicates");
 
-        function toggleLanguage() {
-            currentLang = currentLang === 'th' ? 'en' : 'th';
-            updateTexts();
-        }
+    // แก้ไข Payload เป็น mac_address ให้ตรงกับในตาราง User
+    String payload = "{\"mac_address\":\"" + deviceMac + "\",\"status\":\"online\"}";
+    
+    int httpResponseCode = http.POST(payload);
+    if (httpResponseCode > 0) {
+      Serial.println("Device registered to Supabase successfully.");
+    } else {
+      Serial.print("Error registering device: ");
+      Serial.println(httpResponseCode);
+    }
+    http.end();
+  }
+}
 
-        function updateTexts() {
-            const t = translations[currentLang];
-            document.getElementById("lang-label").innerText = t.langBtn;
-            document.getElementById("t-login-title").innerText = t.loginTitle;
-            document.getElementById("t-login-sub").innerText = t.loginSub;
-            document.getElementById("login-user").placeholder = t.userPlaceholder;
-            document.getElementById("login-pass").placeholder = t.passPlaceholder;
-            document.getElementById("t-login-btn").innerText = t.loginBtn;
-            document.getElementById("t-logout-btn").innerText = t.logoutBtn;
-            document.getElementById("t-control-title").innerText = t.controlTitle;
-            
-            const pumpBtn = document.getElementById("pump-toggle-btn");
-            pumpBtn.innerText = isPumpOn ? t.pumpOff : t.pumpOn;
+void reconnect() {
+  while (!client.connected()) {
+    String clientId = "ESP8266-" + deviceMac;
+    espClient.setInsecure();
+    
+    if (client.connect(clientId.c_str(), MQTT_USER, MQTT_PASS)) {
+      String topicControl = "hsis/control/" + deviceMac;
+      client.subscribe(topicControl.c_str());
+      Serial.println("MQTT Connected & Subscribed to: " + topicControl);
+      
+      client.publish(TOPIC_STATUS, ("Device Online: MAC " + deviceMac).c_str());
+    } else {
+      Serial.print("MQTT failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      delay(5000);
+    }
+  }
+}
 
-            document.getElementById("t-btn-sweep").innerText = t.btnSweep;
-            document.getElementById("t-btn-auto").innerText = t.btnAuto;
-            document.getElementById("t-schedule-title").innerText = t.scheduleTitle;
-            document.getElementById("t-label-days").innerText = t.labelDays;
-            document.getElementById("t-label-time").innerText = t.labelTime;
-            document.getElementById("t-save-schedule").innerText = t.saveSchedule;
-            document.getElementById("t-logs-title").innerText = t.logsTitle;
-            document.getElementById("t-th-time").innerText = t.thTime;
-            document.getElementById("t-th-mac").innerText = t.thMac;
-            document.getElementById("t-th-action").innerText = t.thAction;
-            document.getElementById("t-th-status").innerText = t.thStatus;
-        }
+void setup() {
+  Serial.begin(115200);
 
-        window.addEventListener('DOMContentLoaded', () => {
-            const savedMac = localStorage.getItem("hsis_logged_mac");
-            if (savedMac) {
-                currentMac = savedMac;
-                document.getElementById("login-container").classList.add("hidden");
-                document.getElementById("dashboard-container").classList.remove("hidden");
-                document.getElementById("device-mac-label").innerText = "Device MAC: " + currentMac;
-                initMQTT();
-                fetchLogs();
-            } else {
-                document.getElementById("login-container").classList.remove("hidden");
-            }
-        });
+  pinMode(STEP_PIN, OUTPUT);
+  pinMode(DIR_PIN, OUTPUT);
+  pinMode(ENA_PIN, OUTPUT);
+  pinMode(RELAY_PIN, OUTPUT);
+  pinMode(LIMIT_FWD, INPUT_PULLUP);
+  pinMode(LIMIT_REV, INPUT_PULLUP);
+  
+  digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(ENA_PIN, HIGH);
 
-        async function handleLogin() {
-            const userInput = document.getElementById("login-user").value.trim();
-            const passInput = document.getElementById("login-pass").value.trim();
-            const errorText = document.getElementById("login-error");
-            const t = translations[currentLang];
+  WiFiManager wifiManager;
+  if (!wifiManager.autoConnect("HSIS_Setup_Portal", "Hsis1234")) {
+    Serial.println("Failed to connect and hit timeout");
+    delay(3000);
+    ESP.restart();
+    delay(5000);
+  }
 
-            if (!userInput || !passInput) {
-                errorText.innerText = t.errEmpty;
-                return;
-            }
+  deviceMac = WiFi.macAddress();
+  Serial.println("Device MAC Address: " + deviceMac);
 
-            try {
-                const { data, error } = await _supabase
-                    .from('User')
-                    .select('*')
-                    .eq('username', userInput)
-                    .maybeSingle();
+  registerDeviceToSupabase();
 
-                if (error || !data) {
-                    errorText.innerText = t.errNotFound;
-                    return;
-                }
+  client.setServer(MQTT_SERVER, MQTT_PORT);
+  client.setCallback(callback);
+}
 
-                if (data.password !== passInput) {
-                    errorText.innerText = t.errWrongPass;
-                    return;
-                }
-
-                currentMac = data.mac_adress; 
-                localStorage.setItem("hsis_logged_mac", currentMac);
-
-                document.getElementById("login-container").classList.add("hidden");
-                document.getElementById("dashboard-container").classList.remove("hidden");
-                document.getElementById("device-mac-label").innerText = "Device MAC: " + currentMac;
-                
-                initMQTT();
-                fetchLogs();
-                showToast(currentLang === 'th' ? "เข้าสู่ระบบสำเร็จ" : "Login successful", "🎉");
-            } catch (err) {
-                console.error("Login error:", err);
-                errorText.innerText = "Database connection error";
-            }
-        }
-
-        function handleLogout() {
-            localStorage.removeItem("hsis_logged_mac");
-            currentMac = "";
-            if (client && client.isConnected()) {
-                client.disconnect();
-            }
-            document.getElementById("dashboard-container").classList.add("hidden");
-            document.getElementById("login-container").classList.remove("hidden");
-            document.getElementById("login-user").value = "";
-            document.getElementById("login-pass").value = "";
-        }
-
-        function initMQTT() {
-            const t = translations[currentLang];
-            client = new Paho.MQTT.Client(mqttHost, Number(mqttPort), clientId);
-            client.onConnectionLost = onConnectionLost;
-            client.onMessageArrived = onMessageArrived;
-
-            client.connect({
-                useSSL: true,
-                userName: "Hsis",
-                password: "Hsis1234",
-                onSuccess: () => {
-                    document.getElementById("connection-status").innerText = t.mqttConn;
-                    document.getElementById("status-dot").className = "w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50";
-                    client.subscribe("hsis/status");
-                },
-                onFailure: (res) => {
-                    document.getElementById("connection-status").innerText = t.mqttFail + res.errorMessage;
-                    document.getElementById("status-dot").className = "w-2.5 h-2.5 rounded-full bg-rose-500";
-                }
-            });
-        }
-
-        function onConnectionLost(responseObject) {
-            const t = translations[currentLang];
-            if (responseObject.errorCode !== 0) {
-                document.getElementById("connection-status").innerText = t.mqttLost;
-                document.getElementById("status-dot").className = "w-2.5 h-2.5 rounded-full bg-rose-500";
-            }
-        }
-
-        function togglePump() {
-            const btn = document.getElementById("pump-toggle-btn");
-            const t = translations[currentLang];
-            if (!isPumpOn) {
-                sendCommand("PUMP_ON", "เปิดน้ำ");
-                isPumpOn = true;
-                btn.innerText = t.pumpOff;
-                btn.className = "w-full bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-400 font-semibold py-3.5 px-4 rounded-2xl transition";
-            } else {
-                sendCommand("PUMP_OFF", "ปิดน้ำ");
-                isPumpOn = false;
-                btn.innerText = t.pumpOn;
-                btn.className = "w-full bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 font-semibold py-3.5 px-4 rounded-2xl transition";
-            }
-        }
-
-        async function sendCommand(payload, actionText) {
-            if (client && client.isConnected()) {
-                let message = new Paho.MQTT.Message(payload);
-                message.destinationName = "hsis/control/" + currentMac;
-                client.send(message);
-            }
-
-            try {
-                await _supabase
-                    .from('motor_logs')
-                    .insert([{ 
-                        mac_address: currentMac, 
-                        action: actionText, 
-                        status_message: 'Success' 
-                    }]);
-                fetchLogs();
-                showToast(currentLang === 'th' ? `ส่งคำสั่ง "${actionText}" สำเร็จ` : `Command "${actionText}" sent`, "🚀");
-            } catch (err) {
-                console.error("Database error:", err);
-            }
-        }
-
-        async function saveSchedule() {
-            const days = document.getElementById("schedule-days").value;
-            const time = document.getElementById("schedule-time").value;
-
-            if (!time) {
-                showToast(currentLang === 'th' ? "กรุณากรอกเวลาให้ครบถ้วน" : "Please enter the time", "⚠️");
-                return;
-            }
-
-            try {
-                const { error } = await _supabase
-                    .from('schedules')
-                    .insert([{ Days: days, time: time, is_active: true }]);
-                
-                if (error) {
-                    showToast("Error: " + error.message, "❌");
-                } else {
-                    showToast(currentLang === 'th' ? "บันทึกตารางเวลาสำเร็จ!" : "Schedule saved successfully!", "✅");
-                }
-            } catch (err) {
-                console.error("Database error:", err);
-            }
-        }
-
-        async function fetchLogs() {
-            const { data, error } = await _supabase
-                .from('motor_logs')
-                .select('*')
-                .eq('mac_address', currentMac)
-                .order('created_at', { ascending: false })
-                .limit(10);
-
-            if (!error && data) {
-                const tbody = document.getElementById("log-table-body");
-                tbody.innerHTML = "";
-                data.forEach(log => {
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-slate-800/40 transition">
-                            <td class="p-3.5">${new Date(log.created_at).toLocaleTimeString()}</td>
-                            <td class="p-3.5 font-mono text-slate-400">${log.mac_address}</td>
-                            <td class="p-3.5 text-indigo-300 font-semibold">${log.action}</td>
-                            <td class="p-3.5 text-emerald-400 font-medium">${log.status_message}</td>
-                        </tr>
-                    `;
-                });
-            }
-        }
-
-        function onMessageArrived(message) {
-            fetchLogs();
-        }
-    </script>
-</body>
-</html>
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+}
