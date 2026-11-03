@@ -8,12 +8,19 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6">
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6 relative">
+
+    <!-- ปุ่มเปลี่ยนภาษา มุมขวาบน -->
+    <div class="absolute top-6 right-6">
+        <button onclick="toggleLanguage()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-lg">
+            <span>🌐</span> <span id="lang-label">ENG</span>
+        </button>
+    </div>
 
     <!-- 1. ส่วนหน้า Login -->
     <div id="login-container" class="max-w-md w-full bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-8 hidden">
-        <h1 class="text-2xl font-bold text-center mb-2 text-indigo-400">HSIS System Login</h1>
-        <p class="text-center text-xs text-slate-400 mb-6">กรอก Username และ Password เพื่อเข้าสู่ระบบ</p>
+        <h1 id="t-login-title" class="text-2xl font-bold text-center mb-2 text-indigo-400">HSIS System Login</h1>
+        <p id="t-login-sub" class="text-center text-xs text-slate-400 mb-6">กรอก Username และ Password เพื่อเข้าสู่ระบบ</p>
         
         <div class="space-y-4">
             <div>
@@ -24,7 +31,7 @@
                 <label class="text-xs text-slate-400">Password</label>
                 <input type="password" id="login-pass" placeholder="รหัสผ่าน" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-slate-100 mt-1">
             </div>
-            <button onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-3 px-4 rounded-xl transition">เข้าสู่ระบบ</button>
+            <button id="t-login-btn" onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-3 px-4 rounded-xl transition">เข้าสู่ระบบ</button>
             <p id="login-error" class="text-center text-xs text-rose-400 mt-2"></p>
         </div>
     </div>
@@ -38,25 +45,25 @@
                 <p id="connection-status" class="text-xs text-yellow-400 mt-1">กำลังเชื่อมต่อ MQTT...</p>
                 <p id="device-mac-label" class="text-xs text-slate-400 mt-1 font-mono">Device MAC: -</p>
             </div>
-            <button onclick="handleLogout()" class="bg-rose-600 hover:bg-rose-500 text-xs font-semibold py-2 px-4 rounded-xl transition">ออกจากระบบ</button>
+            <button id="t-logout-btn" onclick="handleLogout()" class="bg-rose-600 hover:bg-rose-500 text-xs font-semibold py-2 px-4 rounded-xl transition">ออกจากระบบ</button>
         </div>
 
         <!-- Control Panel -->
         <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-6">
-            <h2 class="text-lg font-semibold text-slate-200 mb-4">แผงควบคุมอุปกรณ์</h2>
+            <h2 id="t-control-title" class="text-lg font-semibold text-slate-200 mb-4">แผงควบคุมอุปกรณ์</h2>
             <div class="space-y-4">
                 <button id="pump-toggle-btn" onclick="togglePump()" class="w-full bg-emerald-600 hover:bg-emerald-500 font-semibold py-3 px-4 rounded-xl transition">เปิดน้ำ</button>
-                <button onclick="sendCommand('RUN_MOTOR', 'เริ่มปัด')" class="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-3 px-4 rounded-xl transition">เริ่มปัด</button>
-                <button onclick="sendCommand('AUTO_SEQUENCE', 'เปิดน้ำ 30 วิ และปัด 3 รอบ')" class="w-full bg-amber-600 hover:bg-amber-500 font-semibold py-3 px-4 rounded-xl transition">เปิดน้ำ 30 วิ และปัด 3 รอบ</button>
+                <button id="t-btn-sweep" onclick="sendCommand('RUN_MOTOR', 'เริ่มปัด')" class="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-3 px-4 rounded-xl transition">เริ่มปัด</button>
+                <button id="t-btn-auto" onclick="sendCommand('AUTO_SEQUENCE', 'เริ่มทำงานอัตโนมัติ')" class="w-full bg-amber-600 hover:bg-amber-500 font-semibold py-3 px-4 rounded-xl transition">เริ่มทำงานอัตโนมัติ</button>
             </div>
         </div>
 
         <!-- Schedule Panel -->
         <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-6">
-            <h2 class="text-lg font-semibold text-slate-200 mb-4">ตั้งเวลาทำงานอัตโนมัติ (Schedules)</h2>
+            <h2 id="t-schedule-title" class="text-lg font-semibold text-slate-200 mb-4">ตั้งเวลาทำงานอัตโนมัติ (Schedules)</h2>
             <div class="space-y-3">
                 <div>
-                    <label class="text-xs text-slate-400">เลือกวัน (Days)</label>
+                    <label id="t-label-days" class="text-xs text-slate-400">เลือกวัน (Days)</label>
                     <select id="schedule-days" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-slate-100 mt-1">
                         <option value="Everyday">ทุกวัน (Everyday)</option>
                         <option value="Monday">วันจันทร์ (Monday)</option>
@@ -71,24 +78,24 @@
                     </select>
                 </div>
                 <div>
-                    <label class="text-xs text-slate-400">เวลา (Time)</label>
+                    <label id="t-label-time" class="text-xs text-slate-400">เวลา (Time)</label>
                     <input type="time" id="schedule-time" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-slate-100 mt-1">
                 </div>
-                <button onclick="saveSchedule()" class="w-full bg-emerald-600 hover:bg-emerald-500 font-semibold py-3 px-4 rounded-xl transition mt-2">บันทึกตารางเวลา</button>
+                <button id="t-save-schedule" onclick="saveSchedule()" class="w-full bg-emerald-600 hover:bg-emerald-500 font-semibold py-3 px-4 rounded-xl transition mt-2">บันทึกตารางเวลา</button>
             </div>
         </div>
 
         <!-- History Logs Table -->
         <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-6">
-            <h2 class="text-lg font-semibold text-slate-200 mb-4">ประวัติการทำงานย้อนหลัง (Motor Logs)</h2>
+            <h2 id="t-logs-title" class="text-lg font-semibold text-slate-200 mb-4">ประวัติการทำงานย้อนหลัง (Motor Logs)</h2>
             <div class="overflow-x-auto max-h-60 overflow-y-auto">
                 <table class="w-full text-left text-xs text-slate-300">
                     <thead class="bg-slate-900 text-slate-400 uppercase">
                         <tr>
-                            <th class="p-3">เวลา</th>
-                            <th class="p-3">MAC Address</th>
-                            <th class="p-3">คำสั่ง (Action)</th>
-                            <th class="p-3">สถานะ</th>
+                            <th id="t-th-time" class="p-3">เวลา</th>
+                            <th id="t-th-mac" class="p-3">MAC Address</th>
+                            <th id="t-th-action" class="p-3">คำสั่ง (Action)</th>
+                            <th id="t-th-status" class="p-3">สถานะ</th>
                         </tr>
                     </thead>
                     <tbody id="log-table-body" class="divide-y divide-slate-700">
@@ -111,6 +118,102 @@
         let currentMac = "";
         let client = null;
         let isPumpOn = false;
+        let currentLang = 'th'; // ค่าเริ่มต้นภาษาไทย
+
+        const translations = {
+            th: {
+                langBtn: "ENG",
+                loginTitle: "HSIS System Login",
+                loginSub: "กรอก Username และ Password เพื่อเข้าสู่ระบบ",
+                userPlaceholder: "ชื่อผู้ใช้งาน",
+                passPlaceholder: "รหัสผ่าน",
+                loginBtn: "เข้าสู่ระบบ",
+                logoutBtn: "ออกจากระบบ",
+                controlTitle: "แผงควบคุมอุปกรณ์",
+                pumpOn: "เปิดน้ำ",
+                pumpOff: "ปิดน้ำ",
+                btnSweep: "เริ่มปัด",
+                btnAuto: "เริ่มทำงานอัตโนมัติ",
+                scheduleTitle: "ตั้งเวลาทำงานอัตโนมัติ (Schedules)",
+                labelDays: "เลือกวัน (Days)",
+                labelTime: "เวลา (Time)",
+                saveSchedule: "บันทึกตารางเวลา",
+                logsTitle: "ประวัติการทำงานย้อนหลัง (Motor Logs)",
+                thTime: "เวลา",
+                thMac: "MAC Address",
+                thAction: "คำสั่ง (Action)",
+                thStatus: "สถานะ",
+                errEmpty: "กรุณากรอก Username และ Password",
+                errNotFound: "ไม่พบ Username นี้ในระบบ",
+                errWrongPass: "รหัสผ่านไม่ถูกต้อง",
+                mqttConn: "กำลังเชื่อมต่อ MQTT...",
+                mqttSuccess: "เชื่อมต่อ MQTT สำเร็จ",
+                mqttFail: "MQTT ล้มเหลว: ",
+                mqttLost: "ขาดการเชื่อมต่อ MQTT"
+            },
+            en: {
+                langBtn: "TH",
+                loginTitle: "HSIS System Login",
+                loginSub: "Enter Username and Password to login",
+                userPlaceholder: "Username",
+                passPlaceholder: "Password",
+                loginBtn: "Login",
+                logoutBtn: "Logout",
+                controlTitle: "Device Control Panel",
+                pumpOn: "Turn Pump ON",
+                pumpOff: "Turn Pump OFF",
+                btnSweep: "Start Sweep",
+                btnAuto: "Start Auto Mode",
+                scheduleTitle: "Automation Schedules",
+                labelDays: "Select Days",
+                labelTime: "Time",
+                saveSchedule: "Save Schedule",
+                logsTitle: "Motor Logs History",
+                thTime: "Time",
+                thMac: "MAC Address",
+                thAction: "Action",
+                thStatus: "Status",
+                errEmpty: "Please enter Username and Password",
+                errNotFound: "Username not found",
+                errWrongPass: "Incorrect password",
+                mqttConn: "Connecting to MQTT...",
+                mqttSuccess: "MQTT Connected",
+                mqttFail: "MQTT Failed: ",
+                mqttLost: "MQTT Connection Lost"
+            }
+        };
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'th' ? 'en' : 'th';
+            updateTexts();
+        }
+
+        function updateTexts() {
+            const t = translations[currentLang];
+            document.getElementById("lang-label").innerText = t.langBtn;
+            document.getElementById("t-login-title").innerText = t.loginTitle;
+            document.getElementById("t-login-sub").innerText = t.loginSub;
+            document.getElementById("login-user").placeholder = t.userPlaceholder;
+            document.getElementById("login-pass").placeholder = t.passPlaceholder;
+            document.getElementById("t-login-btn").innerText = t.loginBtn;
+            document.getElementById("t-logout-btn").innerText = t.logoutBtn;
+            document.getElementById("t-control-title").innerText = t.controlTitle;
+            
+            const pumpBtn = document.getElementById("pump-toggle-btn");
+            pumpBtn.innerText = isPumpOn ? t.pumpOff : t.pumpOn;
+
+            document.getElementById("t-btn-sweep").innerText = t.btnSweep;
+            document.getElementById("t-btn-auto").innerText = t.btnAuto;
+            document.getElementById("t-schedule-title").innerText = t.scheduleTitle;
+            document.getElementById("t-label-days").innerText = t.labelDays;
+            document.getElementById("t-label-time").innerText = t.labelTime;
+            document.getElementById("t-save-schedule").innerText = t.saveSchedule;
+            document.getElementById("t-logs-title").innerText = t.logsTitle;
+            document.getElementById("t-th-time").innerText = t.thTime;
+            document.getElementById("t-th-mac").innerText = t.thMac;
+            document.getElementById("t-th-action").innerText = t.thAction;
+            document.getElementById("t-th-status").innerText = t.thStatus;
+        }
 
         window.addEventListener('DOMContentLoaded', () => {
             const savedMac = localStorage.getItem("hsis_logged_mac");
@@ -130,9 +233,10 @@
             const userInput = document.getElementById("login-user").value.trim();
             const passInput = document.getElementById("login-pass").value.trim();
             const errorText = document.getElementById("login-error");
+            const t = translations[currentLang];
 
             if (!userInput || !passInput) {
-                errorText.innerText = "กรุณากรอก Username และ Password";
+                errorText.innerText = t.errEmpty;
                 return;
             }
 
@@ -144,12 +248,12 @@
                     .maybeSingle();
 
                 if (error || !data) {
-                    errorText.innerText = "ไม่พบ Username นี้ในระบบ";
+                    errorText.innerText = t.errNotFound;
                     return;
                 }
 
                 if (data.password !== passInput) {
-                    errorText.innerText = "รหัสผ่านไม่ถูกต้อง";
+                    errorText.innerText = t.errWrongPass;
                     return;
                 }
 
@@ -164,7 +268,7 @@
                 fetchLogs();
             } catch (err) {
                 console.error("Login error:", err);
-                errorText.innerText = "เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล";
+                errorText.innerText = "Database connection error";
             }
         }
 
@@ -181,6 +285,7 @@
         }
 
         function initMQTT() {
+            const t = translations[currentLang];
             client = new Paho.MQTT.Client(mqttHost, Number(mqttPort), clientId);
             client.onConnectionLost = onConnectionLost;
             client.onMessageArrived = onMessageArrived;
@@ -190,35 +295,37 @@
                 userName: "Hsis",
                 password: "Hsis1234",
                 onSuccess: () => {
-                    document.getElementById("connection-status").innerText = "เชื่อมต่อ MQTT สำเร็จ";
+                    document.getElementById("connection-status").innerText = t.mqttSuccess;
                     document.getElementById("connection-status").className = "text-xs text-emerald-400 mt-1";
                     client.subscribe("hsis/status");
                 },
                 onFailure: (res) => {
-                    document.getElementById("connection-status").innerText = "MQTT ล้มเหลว: " + res.errorMessage;
+                    document.getElementById("connection-status").innerText = t.mqttFail + res.errorMessage;
                     document.getElementById("connection-status").className = "text-xs text-rose-400 mt-1";
                 }
             });
         }
 
         function onConnectionLost(responseObject) {
+            const t = translations[currentLang];
             if (responseObject.errorCode !== 0) {
-                document.getElementById("connection-status").innerText = "ขาดการเชื่อมต่อ MQTT";
+                document.getElementById("connection-status").innerText = t.mqttLost;
                 document.getElementById("connection-status").className = "text-xs text-rose-400 mt-1";
             }
         }
 
         function togglePump() {
             const btn = document.getElementById("pump-toggle-btn");
+            const t = translations[currentLang];
             if (!isPumpOn) {
                 sendCommand("PUMP_ON", "เปิดน้ำ");
                 isPumpOn = true;
-                btn.innerText = "ปิดน้ำ";
+                btn.innerText = t.pumpOff;
                 btn.className = "w-full bg-rose-600 hover:bg-rose-500 font-semibold py-3 px-4 rounded-xl transition";
             } else {
                 sendCommand("PUMP_OFF", "ปิดน้ำ");
                 isPumpOn = false;
-                btn.innerText = "เปิดน้ำ";
+                btn.innerText = t.pumpOn;
                 btn.className = "w-full bg-emerald-600 hover:bg-emerald-500 font-semibold py-3 px-4 rounded-xl transition";
             }
         }
@@ -235,7 +342,7 @@
                     .from('motor_logs')
                     .insert([{ 
                         mac_address: currentMac, 
-                        action: actionText, // บันทึกข้อความภาษาไทยที่อ่านง่ายลงฐานข้อมูล
+                        action: actionText, 
                         status_message: 'Success' 
                     }]);
                 fetchLogs();
@@ -249,7 +356,7 @@
             const time = document.getElementById("schedule-time").value;
 
             if (!time) {
-                alert("กรุณากรอกเวลาให้ครบถ้วน");
+                alert(currentLang === 'th' ? "กรุณากรอกเวลาให้ครบถ้วน" : "Please enter the time");
                 return;
             }
 
@@ -259,9 +366,9 @@
                     .insert([{ Days: days, time: time, is_active: true }]);
                 
                 if (error) {
-                    alert("บันทึกไม่สำเร็จ: " + error.message);
+                    alert("Error: " + error.message);
                 } else {
-                    alert("บันทึกตารางเวลาสำเร็จ!");
+                    alert(currentLang === 'th' ? "บันทึกตารางเวลาสำเร็จ!" : "Schedule saved successfully!");
                 }
             } catch (err) {
                 console.error("Database error:", err);
