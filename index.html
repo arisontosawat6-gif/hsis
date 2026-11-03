@@ -79,14 +79,26 @@
             <button id="t-logout-btn" onclick="handleLogout()" class="bg-slate-950 hover:bg-rose-600/20 hover:text-rose-400 hover:border-rose-500/50 border border-slate-800 text-slate-300 text-xs font-semibold py-2 px-4 rounded-2xl transition shadow-sm">ออกจากระบบ</button>
         </div>
 
-        <!-- Control Panel -->
+        <!-- Control Panel (ปรับดีไซน์ปุ่มให้เล็กลง เรียงสวยงาม) -->
         <div class="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-6 relative overflow-hidden">
             <div class="absolute -right-10 -top-10 w-40 h-40 bg-indigo-500/5 rounded-full blur-3xl"></div>
             <h2 id="t-control-title" class="text-lg font-semibold text-slate-200 mb-4 relative z-10">แผงควบคุมอุปกรณ์</h2>
-            <div class="space-y-3 relative z-10">
-                <button id="pump-toggle-btn" onclick="togglePump()" class="w-full bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 text-emerald-400 font-semibold py-3.5 px-4 rounded-2xl transition shadow-sm">เปิดน้ำ</button>
-                <button id="t-btn-sweep" onclick="sendCommand('RUN_MOTOR', 'เริ่มปัด')" class="w-full bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/20 text-indigo-400 font-semibold py-3.5 px-4 rounded-2xl transition shadow-sm">เริ่มปัด</button>
-                <button id="t-btn-auto" onclick="sendCommand('AUTO_SEQUENCE', 'เริ่มทำงานอัตโนมัติ')" class="w-full bg-amber-600/10 hover:bg-amber-600/20 border border-amber-500/20 text-amber-400 font-semibold py-3.5 px-4 rounded-2xl transition shadow-sm">เริ่มทำงานอัตโนมัติ</button>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 relative z-10">
+                <!-- ปุ่มเปิด/ปิดน้ำ -->
+                <button id="pump-toggle-btn" onclick="togglePump()" class="bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 text-emerald-400 font-semibold py-2.5 px-4 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2">
+                    <span>💧</span> <span id="t-pump-text">เปิดน้ำ</span>
+                </button>
+                
+                <!-- ปุ่มเริ่มปัด -->
+                <button id="t-btn-sweep" onclick="sendCommand('RUN_MOTOR', 'เริ่มปัด')" class="bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/20 text-indigo-400 font-semibold py-2.5 px-4 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2">
+                    <span>🧹</span> <span>เริ่มปัด</span>
+                </button>
+                
+                <!-- ปุ่มเริ่มทำงานอัตโนมัติ -->
+                <button id="t-btn-auto" onclick="sendCommand('AUTO_SEQUENCE', 'เริ่มทำงานอัตโนมัติ')" class="bg-amber-600/10 hover:bg-amber-600/20 border border-amber-500/20 text-amber-400 font-semibold py-2.5 px-4 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2">
+                    <span>⚡</span> <span>เริ่มทำงานอัตโนมัติ</span>
+                </button>
             </div>
         </div>
 
@@ -94,7 +106,7 @@
         <div class="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-6">
             <h2 id="t-schedule-title" class="text-lg font-semibold text-slate-200 mb-4">ตั้งเวลาทำงานอัตโนมัติ (Schedules)</h2>
             <div class="space-y-4">
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label id="t-label-days" class="text-xs text-slate-400 font-medium">เลือกวัน (Days)</label>
                         <select id="schedule-days" class="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3 text-sm text-slate-100 mt-1 focus:outline-none focus:border-indigo-500 transition shadow-inner">
@@ -115,7 +127,7 @@
                         <input type="time" id="schedule-time" class="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3 text-sm text-slate-100 mt-1 focus:outline-none focus:border-indigo-500 transition shadow-inner" style="color-scheme: dark;">
                     </div>
                 </div>
-                <button id="t-save-schedule" onclick="saveSchedule()" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold py-3 px-4 rounded-2xl transition shadow-lg">บันทึกตารางเวลา</button>
+                <button id="t-save-schedule" onclick="saveSchedule()" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold py-3 px-4 rounded-2xl transition shadow-lg text-xs">บันทึกตารางเวลา</button>
             </div>
 
             <hr class="border-slate-800/80 my-6">
@@ -177,7 +189,7 @@
         let currentLang = 'th';
 
         const translations = {
-            th: { /* (คำแปลเดิมทั้งหมด) */
+            th: {
                 langBtn: "ENG", loginTitle: "HSIS System Login", loginSub: "กรอก Username และ Password เพื่อเข้าสู่ระบบ",
                 userPlaceholder: "ชื่อผู้ใช้งาน", passPlaceholder: "รหัสผ่าน", loginBtn: "เข้าสู่ระบบ", logoutBtn: "ออกจากระบบ",
                 controlTitle: "แผงควบคุมอุปกรณ์", pumpOn: "เปิดน้ำ", pumpOff: "ปิดน้ำ", btnSweep: "เริ่มปัด", btnAuto: "เริ่มทำงานอัตโนมัติ",
@@ -224,11 +236,11 @@
             document.getElementById("t-logout-btn").innerText = t.logoutBtn;
             document.getElementById("t-control-title").innerText = t.controlTitle;
             
-            const pumpBtn = document.getElementById("pump-toggle-btn");
-            pumpBtn.innerText = isPumpOn ? t.pumpOff : t.pumpOn;
+            const pumpText = document.getElementById("t-pump-text");
+            pumpText.innerText = isPumpOn ? (currentLang === 'th' ? "ปิดน้ำ" : "Turn Pump OFF") : (currentLang === 'th' ? "เปิดน้ำ" : "Turn Pump ON");
 
-            document.getElementById("t-btn-sweep").innerText = t.btnSweep;
-            document.getElementById("t-btn-auto").innerText = t.btnAuto;
+            document.getElementById("t-btn-sweep").querySelector("span:last-child").innerText = t.btnSweep;
+            document.getElementById("t-btn-auto").querySelector("span:last-child").innerText = t.btnAuto;
             document.getElementById("t-schedule-title").innerText = t.scheduleTitle;
             document.getElementById("t-label-days").innerText = t.labelDays;
             document.getElementById("t-label-time").innerText = t.labelTime;
@@ -249,7 +261,6 @@
         window.addEventListener('DOMContentLoaded', () => {
             const savedMac = localStorage.getItem("hsis_logged_mac");
             
-            // จำลองการซ่อน Loading screen เมื่อโหลดเสร็จ
             setTimeout(() => {
                 const loader = document.getElementById("loading-screen");
                 loader.style.opacity = '0';
@@ -366,17 +377,19 @@
 
         function togglePump() {
             const btn = document.getElementById("pump-toggle-btn");
+            const pumpTextSpan = document.getElementById("t-pump-text");
             const t = translations[currentLang];
+            
             if (!isPumpOn) {
                 sendCommand("PUMP_ON", "เปิดน้ำ");
                 isPumpOn = true;
-                btn.innerText = t.pumpOff;
-                btn.className = "w-full bg-rose-600/10 hover:bg-rose-600/20 border border-rose-500/20 text-rose-400 font-semibold py-3.5 px-4 rounded-2xl transition shadow-sm";
+                pumpTextSpan.innerText = t.pumpOff;
+                btn.className = "bg-rose-600/10 hover:bg-rose-600/20 border border-rose-500/20 text-rose-400 font-semibold py-2.5 px-4 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2";
             } else {
                 sendCommand("PUMP_OFF", "ปิดน้ำ");
                 isPumpOn = false;
-                btn.innerText = t.pumpOn;
-                btn.className = "w-full bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 text-emerald-400 font-semibold py-3.5 px-4 rounded-2xl transition shadow-sm";
+                pumpTextSpan.innerText = t.pumpOn;
+                btn.className = "bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 text-emerald-400 font-semibold py-2.5 px-4 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2";
             }
         }
 
