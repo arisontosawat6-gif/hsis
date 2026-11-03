@@ -92,7 +92,7 @@
 
     <script>
         const SUPABASE_URL = 'https://rcqurocnauuhnhcsaysjk.supabase.co';
-        const SUPABASE_ANON_KEY = 'QLglbl...'; // ใส่ Anon Key ของคุณ
+        const SUPABASE_ANON_KEY = 'QLglbl...'; 
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const mqttHost = "c1166011.ala.asia-southeast1.emqxsl.com";
@@ -127,16 +127,22 @@
             }
 
             try {
-                // ค้นหาและตรวจสอบ username และ password แบบตรงกัน
                 const { data, error } = await _supabase
                     .from('User')
                     .select('*')
                     .eq('username', userInput)
-                    .eq('password', passInput)
-                    .single();
+                    .maybeSingle();
+
+                console.log("ผลลัพธ์จาก Supabase:", data);
+                console.log("Error จาก Supabase:", error);
 
                 if (error || !data) {
-                    errorText.innerText = "Username หรือ Password ไม่ถูกต้อง";
+                    errorText.innerText = "ไม่พบ Username นี้ในระบบ";
+                    return;
+                }
+
+                if (data.password !== passInput) {
+                    errorText.innerText = "รหัสผ่านไม่ถูกต้อง (รหัสใน DB คือ: " + data.password + ")";
                     return;
                 }
 
