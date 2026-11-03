@@ -7,7 +7,286 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head><!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSIS - Login & Smart Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- เพิ่มไลบรารี bcryptjs สำหรับตรวจสอบรหัสผ่านแบบ Hash[cite: 3] -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
 </head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6">
+
+    <!-- 1. ส่วนหน้า Login -->
+    <div id="login-container" class="max-w-md w-full bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-8 hidden">
+        <h1 class="text-2xl font-bold text-center mb-2 text-indigo-400">HSIS System Login</h1>
+        <p class="text-center text-xs text-slate-400 mb-6">กรอก Username และ Password เพื่อเข้าสู่ระบบ</p>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="text-xs text-slate-400">Username</label>
+                <input type="text" id="login-user" placeholder="ชื่อผู้ใช้งาน" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-slate-100 mt-1">
+            </div>
+            <div>
+                <label class="text-xs text-slate-400">Password</label>
+                <input type="password" id="login-pass" placeholder="รหัสผ่าน" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-slate-100 mt-1">
+            </div>
+            <button onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-3 px-4 rounded-xl transition">เข้าสู่ระบบ</button>
+            <p id="login-error" class="text-center text-xs text-rose-400 mt-2"></p>
+        </div>
+    </div>
+
+    <!-- 2. ส่วนหน้า Dashboard -->
+    <div id="dashboard-container" class="max-w-2xl w-full space-y-6 hidden">
+        <!-- Header -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-6 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-indigo-400">HSIS Smart Dashboard</h1>
+                <p id="connection-status" class="text-xs text-yellow-400 mt-1">กำลังเชื่อมต่อ MQTT...</p>
+                <p id="device-mac-label" class="text-xs text-slate-400 mt-1 font-mono">Device MAC: -</p>
+            </div>
+            <button onclick="handleLogout()" class="bg-rose-600 hover:bg-rose-500 text-xs font-semibold py-2 px-4 rounded-xl transition">ออกจากระบบ</button>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-6">
+            <h2 class="text-lg font-semibold text-slate-200 mb-4">แผงควบคุมอุปกรณ์</h2>
+            <div class="space-y-4">
+                <div class="flex gap-4">
+                    <button onclick="sendCommand('PUMP_ON')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 font-semibold py-3 px-4 rounded-xl transition">เปิดน้ำ (Pump ON)</button>
+                    <button onclick="sendCommand('PUMP_OFF')" class="flex-1 bg-rose-600 hover:bg-rose-500 font-semibold py-3 px-4 rounded-xl transition">ปิดน้ำ (Pump OFF)</button>
+                </div>
+                <button onclick="sendCommand('RUN_MOTOR')" class="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-3 px-4 rounded-xl transition">สั่งรันสเตปเปอร์มอเตอร์</button>
+            </div>
+        </div>
+
+        <!-- Schedule Panel -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-6">
+            <h2 class="text-lg font-semibold text-slate-200 mb-4">ตั้งเวลาทำงานอัตโนมัติ (Schedules)</h2>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs text-slate-400">วัน (Days)</label>
+                    <input type="text" id="schedule-days" value="Everyday" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-slate-100 mt-1">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400">เวลา (Time)</label>
+                    <input type="time" id="schedule-time" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-sm text-slate-100 mt-1">
+                </div>
+                <button onclick="saveSchedule()" class="w-full bg-emerald-600 hover:bg-emerald-500 font-semibold py-3 px-4 rounded-xl transition mt-2">บันทึกตารางเวลา</button>
+            </div>
+        </div>
+
+        <!-- History Logs Table -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-6">
+            <h2 class="text-lg font-semibold text-slate-200 mb-4">ประวัติการทำงานย้อนหลัง (Motor Logs)</h2>
+            <div class="overflow-x-auto max-h-60 overflow-y-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-900 text-slate-400 uppercase">
+                        <tr>
+                            <th class="p-3">เวลา</th>
+                            <th class="p-3">MAC Address</th>
+                            <th class="p-3">คำสั่ง (Action)</th>
+                            <th class="p-3">สถานะ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="log-table-body" class="divide-y divide-slate-700">
+                        <!-- โหลดข้อมูลอัตโนมัติ -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://rcqurocnauuhnhcsaysjk.supabase.co';
+        const SUPABASE_ANON_KEY = 'QLglbl...'; // ใส่ Anon Key ของคุณ
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const mqttHost = "c1166011.ala.asia-southeast1.emqxsl.com";
+        const mqttPort = 8084; 
+        const clientId = "web_client_" + Math.random().toString(16).substring(2, 8);
+        
+        let currentMac = "";
+        let client = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedMac = localStorage.getItem("hsis_logged_mac");
+            if (savedMac) {
+                currentMac = savedMac;
+                document.getElementById("login-container").classList.add("hidden");
+                document.getElementById("dashboard-container").classList.remove("hidden");
+                document.getElementById("device-mac-label").innerText = "Device MAC: " + currentMac;
+                initMQTT();
+                fetchLogs();
+            } else {
+                document.getElementById("login-container").classList.remove("hidden");
+            }
+        });
+
+        async function handleLogin() {
+            const userInput = document.getElementById("login-user").value.trim();
+            const passInput = document.getElementById("login-pass").value.trim();
+            const errorText = document.getElementById("login-error");
+
+            if (!userInput || !passInput) {
+                errorText.innerText = "กรุณากรอก Username และ Password";
+                return;
+            }
+
+            try {
+                // ค้นหาเฉพาะ username จากตาราง User
+                const { data, error } = await _supabase
+                    .from('User')
+                    .select('*')
+                    .eq('username', userInput)
+                    .single();
+
+                if (error || !data) {
+                    errorText.innerText = "Username หรือ Password ไม่ถูกต้อง";
+                    return;
+                }
+
+                // ตรวจสอบรหัสผ่านที่เป็นรูปแบบ bcrypt hash[cite: 3]
+                const isPasswordValid = bcrypt.compareSync(passInput, data.password);
+                if (!isPasswordValid) {
+                    errorText.innerText = "Username หรือ Password ไม่ถูกต้อง";
+                    return;
+                }
+
+                currentMac = data.mac_adress; 
+                localStorage.setItem("hsis_logged_mac", currentMac);
+
+                document.getElementById("login-container").classList.add("hidden");
+                document.getElementById("dashboard-container").classList.remove("hidden");
+                document.getElementById("device-mac-label").innerText = "Device MAC: " + currentMac;
+                
+                initMQTT();
+                fetchLogs();
+            } catch (err) {
+                console.error("Login error:", err);
+                errorText.innerText = "เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล";
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem("hsis_logged_mac");
+            currentMac = "";
+            if (client && client.isConnected()) {
+                client.disconnect();
+            }
+            document.getElementById("dashboard-container").classList.add("hidden");
+            document.getElementById("login-container").classList.remove("hidden");
+            document.getElementById("login-user").value = "";
+            document.getElementById("login-pass").value = "";
+        }
+
+        function initMQTT() {
+            client = new Paho.MQTT.Client(mqttHost, Number(mqttPort), clientId);
+            client.onConnectionLost = onConnectionLost;
+            client.onMessageArrived = onMessageArrived;
+
+            client.connect({
+                useSSL: true,
+                userName: "Hsis",
+                password: "Hsis1234",
+                onSuccess: () => {
+                    document.getElementById("connection-status").innerText = "เชื่อมต่อ MQTT สำเร็จ";
+                    document.getElementById("connection-status").className = "text-xs text-emerald-400 mt-1";
+                    client.subscribe("hsis/status");
+                },
+                onFailure: (res) => {
+                    document.getElementById("connection-status").innerText = "MQTT ล้มเหลว: " + res.errorMessage;
+                    document.getElementById("connection-status").className = "text-xs text-rose-400 mt-1";
+                }
+            });
+        }
+
+        function onConnectionLost(responseObject) {
+            if (responseObject.errorCode !== 0) {
+                document.getElementById("connection-status").innerText = "ขาดการเชื่อมต่อ MQTT";
+                document.getElementById("connection-status").className = "text-xs text-rose-400 mt-1";
+            }
+        }
+
+        async function sendCommand(payload) {
+            if (client && client.isConnected()) {
+                let message = new Paho.MQTT.Message(payload);
+                // ส่งคำสั่งเจาะจงเฉพาะ Topic ของบอร์ดผู้ใช้คนนั้น
+                message.destinationName = "hsis/control/" + currentMac;
+                client.send(message);
+            }
+
+            try {
+                await _supabase
+                    .from('motor_logs')
+                    .insert([{ 
+                        mac_address: currentMac, 
+                        action: payload, 
+                        status_message: 'Success' 
+                    }]);
+                fetchLogs();
+            } catch (err) {
+                console.error("Database error:", err);
+            }
+        }
+
+        async function saveSchedule() {
+            const days = document.getElementById("schedule-days").value;
+            const time = document.getElementById("schedule-time").value;
+
+            if (!time) {
+                alert("กรุณากรอกเวลาให้ครบถ้วน");
+                return;
+            }
+
+            try {
+                const { error } = await _supabase
+                    .from('schedules')
+                    .insert([{ Days: days, time: time, is_active: true }]);
+                
+                if (error) {
+                    alert("บันทึกไม่สำเร็จ: " + error.message);
+                } else {
+                    alert("บันทึกตารางเวลาสำเร็จ!");
+                }
+            } catch (err) {
+                console.error("Database error:", err);
+            }
+        }
+
+        async function fetchLogs() {
+            const { data, error } = await _supabase
+                .from('motor_logs')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            if (!error && data) {
+                const tbody = document.getElementById("log-table-body");
+                tbody.innerHTML = "";
+                data.forEach(log => {
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-700/50">
+                            <td class="p-3">${new Date(log.created_at).toLocaleTimeString()}</td>
+                            <td class="p-3 font-mono">${log.mac_address}</td>
+                            <td class="p-3 text-indigo-300 font-semibold">${log.action}</td>
+                            <td class="p-3 text-emerald-400">${log.status_message}</td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        function onMessageArrived(message) {
+            fetchLogs();
+        }
+    </script>
+</body>
+</html>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6">
 
     <!-- 1. ส่วนหน้า Login -->
