@@ -92,7 +92,7 @@
 
     <script>
         const SUPABASE_URL = 'https://rcqurocnauuhnhcsaysjk.supabase.co';
-        const SUPABASE_ANON_KEY = 'QLglbl...'; // ใส่ Anon Key ของคุณ
+        const SUPABASE_ANON_KEY = 'QLglbl...';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const mqttHost = "c1166011.ala.asia-southeast1.emqxsl.com";
@@ -102,7 +102,6 @@
         let currentMac = "";
         let client = null;
 
-        // ตรวจสอบสถานะการล็อกอินค้างไว้
         window.addEventListener('DOMContentLoaded', () => {
             const savedMac = localStorage.getItem("hsis_logged_mac");
             if (savedMac) {
@@ -128,7 +127,6 @@
             }
 
             try {
-                // ค้นหาข้อมูลในตาราง User เช็คจากฟิลด์ username และ password
                 const { data, error } = await _supabase
                     .from('User')
                     .select('*')
@@ -141,9 +139,7 @@
                     return;
                 }
 
-                // ดึงค่า mac_adress จากแถวข้อมูลของ User นั้นมาเก็บไว้ใช้งานต่อ
                 currentMac = data.mac_adress; 
-
                 localStorage.setItem("hsis_logged_mac", currentMac);
 
                 document.getElementById("login-container").classList.add("hidden");
@@ -201,7 +197,8 @@
         async function sendCommand(payload) {
             if (client && client.isConnected()) {
                 let message = new Paho.MQTT.Message(payload);
-                message.destinationName = "hsis/control";
+                // ส่งไปยัง Topic เฉพาะบอร์ดของ MAC Address นี้เท่านั้น
+                message.destinationName = "hsis/control/" + currentMac;
                 client.send(message);
             }
 
