@@ -13,12 +13,16 @@
     <!-- 1. ส่วนหน้า Login -->
     <div id="login-container" class="max-w-md w-full bg-slate-800 border border-slate-700 rounded-2xl shadow-xl p-8 hidden">
         <h1 class="text-2xl font-bold text-center mb-2 text-indigo-400">HSIS System Login</h1>
-        <p class="text-center text-xs text-slate-400 mb-6">กรอก MAC Address ของอุปกรณ์เพื่อเข้าสู่ระบบ</p>
+        <p class="text-center text-xs text-slate-400 mb-6">กรอก Username และ Password เพื่อเข้าสู่ระบบ</p>
         
         <div class="space-y-4">
             <div>
-                <label class="text-xs text-slate-400">Device MAC Address</label>
-                <input type="text" id="login-mac" placeholder="เช่น AA:BB:CC:DD:EE:FF" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-slate-100 mt-1 font-mono">
+                <label class="text-xs text-slate-400">Username</label>
+                <input type="text" id="login-user" placeholder="ชื่อผู้ใช้งาน" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-slate-100 mt-1">
+            </div>
+            <div>
+                <label class="text-xs text-slate-400">Password</label>
+                <input type="password" id="login-pass" placeholder="รหัสผ่าน" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-slate-100 mt-1">
             </div>
             <button onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-3 px-4 rounded-xl transition">เข้าสู่ระบบ</button>
             <p id="login-error" class="text-center text-xs text-rose-400 mt-2"></p>
@@ -32,6 +36,7 @@
             <div>
                 <h1 class="text-xl font-bold text-indigo-400">HSIS Smart Dashboard</h1>
                 <p id="connection-status" class="text-xs text-yellow-400 mt-1">กำลังเชื่อมต่อ MQTT...</p>
+                <p id="device-mac-label" class="text-xs text-slate-400 mt-1 font-mono">Device MAC: -</p>
             </div>
             <button onclick="handleLogout()" class="bg-rose-600 hover:bg-rose-500 text-xs font-semibold py-2 px-4 rounded-xl transition">ออกจากระบบ</button>
         </div>
@@ -87,7 +92,7 @@
 
     <script>
         const SUPABASE_URL = 'https://rcqurocnauuhnhcsaysjk.supabase.co';
-        const SUPABASE_ANON_KEY = 'QLglbl...';
+        const SUPABASE_ANON_KEY = 'QLglbl...'; // ใส่ Anon Key ของคุณ
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const mqttHost = "c1166011.ala.asia-southeast1.emqxsl.com";
@@ -97,13 +102,14 @@
         let currentMac = "";
         let client = null;
 
-        // ตรวจสอบสถานะการล็อกอินค้างไว้ทันทีที่เปิดหน้าเว็บ
+        // ตรวจสอบสถานะการล็อกอินค้างไว้
         window.addEventListener('DOMContentLoaded', () => {
             const savedMac = localStorage.getItem("hsis_logged_mac");
             if (savedMac) {
                 currentMac = savedMac;
                 document.getElementById("login-container").classList.add("hidden");
                 document.getElementById("dashboard-container").classList.remove("hidden");
+                document.getElementById("device-mac-label").innerText = "Device MAC: " + currentMac;
                 initMQTT();
                 fetchLogs();
             } else {
@@ -112,32 +118,37 @@
         });
 
         async function handleLogin() {
-            const macInput = document.getElementById("login-mac").value.trim();
+            const userInput = document.getElementById("login-user").value.trim();
+            const passInput = document.getElementById("login-pass").value.trim();
             const errorText = document.getElementById("login-error");
 
-            if (!macInput) {
-                errorText.innerText = "กรุณากรอก MAC Address";
+            if (!userInput || !passInput) {
+                errorText.innerText = "กรุณากรอก Username และ Password";
                 return;
             }
 
             try {
+                // ค้นหาข้อมูลในตาราง User เช็คจากฟิลด์ username และ password
                 const { data, error } = await _supabase
                     .from('User')
                     .select('*')
-                    .eq('mac_adress', macInput)
+                    .eq('username', userInput)
+                    .eq('password', passInput)
                     .single();
 
                 if (error || !data) {
-                    errorText.innerText = "ไม่พบ MAC Address นี้ในระบบ";
+                    errorText.innerText = "Username หรือ Password ไม่ถูกต้อง";
                     return;
                 }
 
-                // บันทึกสถานะลงใน localStorage เพื่อให้ระบบจำการล็อกอิน
-                localStorage.setItem("hsis_logged_mac", macInput);
-                currentMac = macInput;
+                // ดึงค่า mac_adress จากแถวข้อมูลของ User นั้นมาเก็บไว้ใช้งานต่อ
+                currentMac = data.mac_adress; 
+
+                localStorage.setItem("hsis_logged_mac", currentMac);
 
                 document.getElementById("login-container").classList.add("hidden");
                 document.getElementById("dashboard-container").classList.remove("hidden");
+                document.getElementById("device-mac-label").innerText = "Device MAC: " + currentMac;
                 
                 initMQTT();
                 fetchLogs();
@@ -148,7 +159,6 @@
         }
 
         function handleLogout() {
-            // ล้างข้อมูลการจำสถานะ
             localStorage.removeItem("hsis_logged_mac");
             currentMac = "";
             if (client && client.isConnected()) {
@@ -156,7 +166,8 @@
             }
             document.getElementById("dashboard-container").classList.add("hidden");
             document.getElementById("login-container").classList.remove("hidden");
-            document.getElementById("login-mac").value = "";
+            document.getElementById("login-user").value = "";
+            document.getElementById("login-pass").value = "";
         }
 
         function initMQTT() {
